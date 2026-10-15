@@ -1,7 +1,8 @@
 {
   "name": "Sculptex",
   "short_name": "Sculptex",
-  "start_url": "./",
+  "id": "/sculptex/?app=sculptex-2",
+  "start_url": "./?app=sculptex-2",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

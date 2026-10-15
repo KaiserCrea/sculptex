@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16191e">
+<title>Sculptex</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#16191e;--card:#1f232a;--card2:#272c34;--line:#333944;--txt:#eef0f3;--mut:#9aa1ab;--green:#3ecf7a;--orange:#f59a3c;--red:#ef5b5b;--blue:#6aa8ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px}
+body{padding-bottom:80px}
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px}
+header h1{font-size:22px;margin:0;font-weight:600;letter-spacing:.5px}
+main{padding:0 16px;max-width:520px;margin:0 auto}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mut{color:var(--mut);font-size:13px}
+.big{font-size:24px;font-weight:600}
+.bar{height:12px;border-radius:6px;background:var(--card2);overflow:hidden;margin:6px 0 12px}
+.bar>div{height:100%;border-radius:6px;transition:width .3s}
+.pill{font-size:13px;padding:5px 11px;border-radius:20px;font-weight:600;border:none}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+button{font:inherit;color:inherit;cursor:pointer}
+.fbtn{display:flex;justify-content:space-between;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:left;min-height:52px}
+.fbtn:active{transform:scale(.97);background:var(--card2)}
+.fbtn small{color:var(--mut);white-space:nowrap}
+.btn{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.btn.pri{background:var(--green);color:#0d2b19;border:none;font-weight:600}
+.btn.danger{color:var(--red)}
+input,select{font:inherit;color:var(--txt);background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 4px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#111418;border-top:1px solid var(--line);padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
+nav button{flex:1;background:none;border:none;color:var(--mut);font-size:11px;padding:4px 0}
+nav button svg{display:block;margin:0 auto 2px;width:22px;height:22px}
+nav button.on{color:var(--green)}
+.tab{display:none}.tab.on{display:block}
+.list>div{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);gap:8px}
+.list>div:last-child{border-bottom:none}
+.x{background:none;border:none;color:var(--mut);font-size:20px;padding:0 6px}
+.alert{border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px}
+.alert.warn{background:#3a2a14;color:#ffc98a}
+.alert.info{background:#163021;color:#9ee8bd}
+h2{font-size:16px;margin:4px 0 10px;font-weight:600}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--line);background:var(--card2);font-size:14px}
+.seg button.on{border-color:transparent;color:#111;font-weight:600}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#e9ebee;color:#111;padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#toast.on{opacity:1}
+dialog{background:var(--card);color:var(--txt);border:none;border-radius:16px;padding:16px;width:min(92vw,420px)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.chk{display:flex;align-items:center;gap:8px;padding:6px 0}
+.chk input{width:auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sculptex</h1>
+  <span id="phaseBadge" class="pill"></span>
+</header>
+<main>
+
+<!-- AUJOURD'HUI -->
+<section class="tab on" id="t-today">
+  <div id="alerts"></div>
+  <div class="card">
+    <div class="row mut"><span>Protéines</span><span><b id="pNow" class="big" style="color:var(--txt)">0</b> / <span id="pTgt"></span> g</span></div>
+    <div class="bar"><div id="pBar" style="background:var(--green)"></div></div>
+    <div class="row mut"><span>Calories</span><span><b id="kNow" class="big" style="color:var(--txt)">0</b> / <span id="kTgt"></span> kcal</span></div>
+    <div class="bar" style="margin-bottom:0"><div id="kBar" style="background:var(--orange)"></div></div>
+  </div>
+  <div class="grid2" id="quick"></div>
+  <div class="card" style="margin-top:12px">
+    <h2>Ajouté aujourd'hui</h2>
+    <div class="list" id="todayList"></div>
+  </div>
+</section>
+
+<!-- SUIVI -->
+<section class="tab" id="t-track">
+  <div class="grid2" style="margin-bottom:12px">
+    <div class="card" style="margin:0"><div class="mut">Poids moyen (7 j)</div><div class="big" id="wAvg">–</div><div id="wTrend" style="font-size:13px"></div></div>
+    <div class="card" style="margin:0"><div class="mut">Tour de taille</div><div class="big" id="cLast">–</div><div class="mut" id="cDiff"></div></div>
+  </div>
+  <div class="card">
+    <h2>Nouvelle pesée</h2>
+    <div class="row"><input id="wIn" type="number" inputmode="decimal" step="0.1" placeholder="87,0 kg"><button class="btn pri" onclick="addWeight()">Noter</button></div>
+    <label>Tour de taille (une fois par semaine)</label>
+    <div class="row"><input id="cIn" type="number" inputmode="decimal" step="0.5" placeholder="88 cm"><button class="btn pri" onclick="addWaist()">Noter</button></div>
+  </div>
+  <div class="card">
+    <div class="row"><h2 style="margin:0">Poids</h2>
+      <div class="seg" style="width:160px"><button data-r="90" class="on" onclick="setRange(90,this)">3 mois</button><button data-r="365" onclick="setRange(365,this)">1 an</button></div></div>
+    <div id="chart" style="margin-top:10px"></div>
+    <div class="mut" style="margin-top:6px"><span style="color:var(--green)">■</span> Sèche &nbsp; <span style="color:var(--blue)">■</span> Entretien &nbsp; <span style="color:var(--orange)">■</span> Prise de masse</div>
+  </div>
+  <div class="card">
+    <h2>Historique</h2>
+    <div class="list" id="histList"></div>
+  </div>
+</section>
+
+<!-- ALIMENTS -->
+<section class="tab" id="t-foods">
+  <div class="card">
+    <h2>Mes aliments</h2>
+    <div class="list" id="foodList"></div>
+    <button class="btn pri" style="width:100%;margin-top:10px" onclick="editFood()">+ Nouvel aliment</button>
+  </div>
+  <div class="card">
+    <h2>Mes groupes</h2>
+    <div class="mut" style="margin-bottom:6px">Un groupe ajoute plusieurs aliments d'un seul tap.</div>
+    <div class="list" id="groupList"></div>
+    <button class="btn pri" style="width:100%;margin-top:10px" onclick="editGroup()">+ Nouveau groupe</button>
+  </div>
+</section>
+
+<!-- RÉGLAGES -->
+<section class="tab" id="t-set">
+  <div class="card">
+    <h2>Phase en cours</h2>
+    <div class="seg" id="phaseSeg"></div>
+    <label>Début de la phase</label>
+    <input type="date" id="phaseStart" onchange="setPhaseStart(this.value)">
+    <div class="mut" id="phaseInfo" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>Cibles par phase</h2>
+    <div id="targets"></div>
+  </div>
+  <div class="card">
+    <h2>Jours de pesée</h2>
+    <div id="days"></div>
+  </div>
+  <div class="card">
+    <h2>Sauvegarde</h2>
+    <div class="mut" style="margin-bottom:8px">Tes données restent sur ton téléphone. Fais une sauvegarde de temps en temps.</div>
+    <div class="grid2">
+      <button class="btn" onclick="exportData()">Sauvegarder</button>
+      <button class="btn" onclick="document.getElementById('imp').click()">Restaurer</button>
+    </div>
+    <input type="file" id="imp" accept="application/json" style="display:none" onchange="importData(this)">
+  </div>
+</section>
+</main>
+
+<nav>
+  <button class="on" data-t="today" onclick="go('today',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Aujourd'hui</button>
+  <button data-t="track" onclick="go('track',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Suivi</button>
+  <button data-t="foods" onclick="go('foods',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8a3 3 0 0 0 3 3v7"/><path d="M10 3v6M4 3v6a3 3 0 0 0 3 3"/><path d="M17 3c-2 2-2 6 0 8v10"/></svg>Aliments</button>
+  <button data-t="set" onclick="go('set',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Réglages</button>
+</nav>
+
+<dialog id="dlg"></dialog>
+<div id="toast"></div>
+
+<script>
+const KEY='sculptex-v1';
+const PH={seche:{n:'Sèche',c:'#3ecf7a'},entretien:{n:'Entretien',c:'#6aa8ff'},masse:{n:'Prise de masse',c:'#f59a3c'}};
+const DAYN=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const uid=()=>Math.random().toString(36).slice(2,9);
+const pad=n=>String(n).padStart(2,'0');
+const dkey=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>dkey(new Date());
+const parseD=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const fr=(n,dec=1)=>Number(n).toLocaleString('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const fmtD=s=>parseD(s).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+const num=v=>parseFloat(String(v).replace(',','.'));
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function defaults(){
+  const f=[
+    {id:uid(),name:'Mon petit déj',p:38,k:550},
+    {id:uid(),name:'Mon shaker',p:46,k:505},
+    {id:uid(),name:'Petite cuisse',p:20,k:180},
+    {id:uid(),name:'Grosse cuisse',p:35,k:320},
+    {id:uid(),name:'Blanc de poulet 100 g',p:23,k:110}];
+  return {
+    foods:f,groups:[],log:{},
+    weights:[{d:today(),kg:87}],waist:[],
+    phases:[{p:'seche',start:today()}],
+    targets:{seche:{p:185,k:2200},entretien:{p:185,k:2600},masse:{p:185,k:2850}},
+    days:[1,3,5]};
+}
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S)S=defaults();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Enregistrement impossible')}};
+save();
+
+const cur=()=>S.phases[S.phases.length-1];
+function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1600)}
+function go(t,b){document.querySelectorAll('.tab').forEach(s=>s.classList.toggle('on',s.id==='t-'+t));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));render()}
+
+/* ---------- calculs ---------- */
+function weeksIn(){return Math.floor((parseD(today())-parseD(cur().start))/864e5/7)}
+function avgBetween(fromDaysAgo,toDaysAgo){
+  const now=parseD(today());
+  const v=S.weights.filter(w=>{const a=(now-parseD(w.d))/864e5;return a>=toDaysAgo&&a<fromDaysAgo}).map(w=>w.kg);
+  return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
+}
+function trend(){
+  const a=avgBetween(7,0),b=avgBetween(14,7);
+  if(a==null||b==null)return null;
+  return (a-b)/b*100;
+}
+function trendMsg(t){
+  if(t==null)return{txt:'Tendance après 2 semaines de pesées',c:'var(--mut)'};
+  const p=cur().p,s=(t>0?'+':'')+fr(t,2)+' %/sem';
+  if(p==='seche'){
+    if(t<=-1.2)return{txt:s+' · un peu rapide',c:'var(--orange)'};
+    if(t<=-0.4)return{txt:s+' · bon rythme',c:'var(--green)'};
+    return{txt:s+' · trop lent',c:'var(--orange)'};
+  }
+  if(p==='masse'){
+    if(t>0.25)return{txt:s+' · trop rapide',c:'var(--orange)'};
+    if(t>=0.03)return{txt:s+' · bon rythme',c:'var(--green)'};
+    return{txt:s+' · pas de prise',c:'var(--orange)'};
+  }
+  return Math.abs(t)<=0.3?{txt:s+' · stable',c:'var(--green)'}:{txt:s+' · ça bouge',c:'var(--orange)'};
+}
+
+/* ---------- rendu ---------- */
+function render(){
+  const ph=cur(),info=PH[ph.p],tg=S.targets[ph.p],w=weeksIn();
+  const b=document.getElementById('phaseBadge');
+  b.textContent=info.n+' · semaine '+(w+1);b.style.background=info.c;b.style.color='#111';
+
+  /* alertes */
+  const al=[];
+  if(ph.p==='seche'&&w>=16)al.push(['warn','Ta sèche dure depuis '+w+' semaines. Pense à une pause de 2 à 4 semaines à l\'entretien.']);
+  if(ph.p==='masse'&&w>=26)al.push(['warn','Prise de masse depuis '+w+' semaines. Surveille ton tour de taille et prépare ta sèche.']);
+  const dow=new Date().getDay();
+  if(S.days.includes(dow)&&!S.weights.some(x=>x.d===today()))al.push(['info','Jour de pesée aujourd\'hui. Le matin, à jeun.']);
+  const lastC=S.waist[S.waist.length-1];
+  if(!lastC||(parseD(today())-parseD(lastC.d))/864e5>=7)al.push(['info','Pense à mesurer ton tour de taille cette semaine.']);
+  document.getElementById('alerts').innerHTML=al.map(a=>'<div class="alert '+a[0]+'">'+a[1]+'</div>').join('');
+
+  /* compteur */
+  const L=S.log[today()]||[];
+  const p=L.reduce((a,e)=>a+e.p,0),k=L.reduce((a,e)=>a+e.k,0);
+  document.getElementById('pNow').textContent=Math.round(p);
+  document.getElementById('kNow').textContent=Math.round(k);
+  document.getElementById('pTgt').textContent=tg.p;
+  document.getElementById('kTgt').textContent=tg.k;
+  document.getElementById('pBar').style.width=Math.min(100,p/tg.p*100)+'%';
+  const kb=document.getElementById('kBar');kb.style.width=Math.min(100,k/tg.k*100)+'%';kb.style.background=k>tg.k?'var(--red)':'var(--orange)';
+
+  const q=[...S.groups.map(g=>({t:'g',id:g.id,name:g.name,...groupTot(g)})),...S.foods.map(f=>({t:'f',...f}))];
+  document.getElementById('quick').innerHTML=q.map(x=>'<button class="fbtn" onclick="addItem(\''+x.t+'\',\''+x.id+'\')"><span>'+esc(x.name)+'</span><small>+'+Math.round(x.p)+' g</small></button>').join('')
+    +'<button class="fbtn" onclick="addFree()" style="color:var(--mut)"><span>+ Autre</span></button>';
+  document.getElementById('todayList').innerHTML=L.length?L.map((e,i)=>'<div><span>'+esc(e.name)+'</span><span class="mut">'+Math.round(e.p)+' g · '+Math.round(e.k)+' kcal <button class="x" onclick="delEntry('+i+')">×</button></span></div>').join(''):'<div class="mut">Rien pour l\'instant.</div>';
+
+  /* suivi */
+  const a7=avgBetween(7,0),tm=trendMsg(trend());
+  document.getElementById('wAvg').textContent=a7!=null?fr(a7)+' kg':'–';
+  const wt=document.getElementById('wTrend');wt.textContent=tm.txt;wt.style.color=tm.c;
+  if(lastC){
+    document.getElementById('cLast').textContent=fr(lastC.cm)+' cm';
+    const prev=S.waist.filter(x=>(parseD(lastC.d)-parseD(x.d))/864e5>=25).pop();
+    document.getElementById('cDiff').textContent=prev?((lastC.cm-prev.cm>0?'+':'')+fr(lastC.cm-prev.cm)+' cm en 1 mois'):'Le '+fmtD(lastC.d);
+  }else{document.getElementById('cLast').textContent='–';document.getElementById('cDiff').textContent=''}
+  drawChart();
+  const H=[...S.weights.map(x=>({d:x.d,t:'w',v:fr(x.kg)+' kg'})),...S.waist.map(x=>({d:x.d,t:'c',v:fr(x.cm)+' cm (taille)'}))].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,12);
+  document.getElementById('histList').innerHTML=H.length?H.map(h=>'<div><span>'+fmtD(h.d)+'</span><span>'+h.v+' <button class="x" onclick="delMeasure(\''+h.t+'\',\''+h.d+'\')">×</button></span></div>').join(''):'<div class="mut">Aucune mesure.</div>';
+
+  /* aliments */
+  document.getElementById('foodList').innerHTML=S.foods.map(f=>'<div><span>'+esc(f.name)+'<br><span class="mut">'+f.p+' g · '+f.k+' kcal</span></span><button class="btn" onclick="editFood(\''+f.id+'\')">Modifier</button></div>').join('')||'<div class="mut">Aucun aliment.</div>';
+  document.getElementById('groupList').innerHTML=S.groups.map(g=>{const t=groupTot(g);return '<div><span>'+esc(g.name)+'<br><span class="mut">'+Math.round(t.p)+' g · '+Math.round(t.k)+' kcal</span></span><button class="btn" onclick="editGroup(\''+g.id+'\')">Modifier</button></div>'}).join('')||'<div class="mut">Aucun groupe.</div>';
+
+  /* réglages */
+  document.getElementById('phaseSeg').innerHTML=Object.keys(PH).map(k=>'<button class="'+(k===ph.p?'on':'')+'" style="'+(k===ph.p?'background:'+PH[k].c:'')+'" onclick="setPhase(\''+k+'\')">'+PH[k].n+'</button>').join('');
+  document.getElementById('phaseStart').value=ph.start;
+  document.getElementById('phaseInfo').textContent='Semaine '+(w+1)+' de '+info.n.toLowerCase()+'.';
+  document.getElementById('targets').innerHTML=Object.keys(PH).map(k=>'<div style="margin-bottom:8px"><span style="color:'+PH[k].c+';font-weight:600">'+PH[k].n+'</span><div class="grid2"><div><label>Protéines (g)</label><input type="number" inputmode="numeric" value="'+S.targets[k].p+'" onchange="setTgt(\''+k+'\',\'p\',this.value)"></div><div><label>Calories (kcal)</label><input type="number" inputmode="numeric" value="'+S.targets[k].k+'" onchange="setTgt(\''+k+'\',\'k\',this.value)"></div></div></div>').join('');
+  document.getElementById('days').innerHTML='<div class="seg">'+[1,2,3,4,5,6,0].map(d=>'<button class="'+(S.days.includes(d)?'on':'')+'" style="'+(S.days.includes(d)?'background:var(--green)':'')+'" onclick="toggleDay('+d+')">'+DAYN[d]+'</button>').join('')+'</div>';
+}
+
+function groupTot(g){return g.items.reduce((a,id)=>{const f=S.foods.find(x=>x.id===id);if(f){a.p+=f.p;a.k+=f.k}return a},{p:0,k:0})}
+
+/* ---------- graphique ---------- */
+let RANGE=90;
+function setRange(r,b){RANGE=r;document.querySelectorAll('[data-r]').forEach(x=>{x.classList.toggle('on',x===b);x.style.background=x===b?'var(--green)':''});drawChart()}
+function phaseAt(d){let p=S.phases[0].p;for(const x of S.phases)if(x.start<=d)p=x.p;return p}
+function drawChart(){
+  const el=document.getElementById('chart');
+  const now=parseD(today()),from=new Date(now-RANGE*864e5);
+  const pts=S.weights.filter(w=>parseD(w.d)>=from).sort((a,b)=>a.d.localeCompare(b.d));
+  if(pts.length<2){el.innerHTML='<div class="mut" style="padding:20px 0;text-align:center">La courbe apparaîtra après 2 pesées.</div>';return}
+  const W=340,H=150,P=28;
+  const vs=pts.map(p=>p.kg),mn=Math.min(...vs)-0.5,mx=Math.max(...vs)+0.5;
+  const x=d=>P+(parseD(d)-from)/(now-from)*(W-P-6),y=v=>8+(mx-v)/(mx-mn)*(H-26);
+  let bands='';
+  for(let i=0;i<=RANGE;i+=1){const d=dkey(new Date(from.getTime()+i*864e5));const c=PH[phaseAt(d)].c;bands+='<rect x="'+x(d)+'" y="'+(H-12)+'" width="'+((W-P-6)/RANGE+0.6)+'" height="5" fill="'+c+'"/>'}
+  const line=pts.map(p=>x(p.d)+','+y(p.kg)).join(' ');
+  const dots=pts.map(p=>'<circle cx="'+x(p.d)+'" cy="'+y(p.kg)+'" r="2.5" fill="'+PH[phaseAt(p.d)].c+'"/>').join('');
+  const ticks=[mx-0.5,(mx+mn)/2,mn+0.5].map(v=>'<text x="0" y="'+(y(v)+4)+'" fill="#9aa1ab" font-size="10">'+fr(v)+'</text><line x1="'+P+'" x2="'+W+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#333944" stroke-width="0.5"/>').join('');
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" width="100%">'+ticks+bands+'<polyline points="'+line+'" fill="none" stroke="#eef0f3" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'+dots+'</svg>';
+}
+
+/* ---------- actions ---------- */
+function pushEntry(name,p,k){(S.log[today()]=S.log[today()]||[]).push({name,p,k,t:Date.now()});
+  const cut=dkey(new Date(Date.now()-120*864e5));for(const d in S.log)if(d<cut)delete S.log[d];
+  save();render();toast('+'+Math.round(p)+' g de protéines')}
+function addItem(t,id){
+  if(t==='f'){const f=S.foods.find(x=>x.id===id);if(f)pushEntry(f.name,f.p,f.k)}
+  else{const g=S.groups.find(x=>x.id===id);if(g){const s=groupTot(g);pushEntry(g.name,s.p,s.k)}}
+}
+function delEntry(i){const L=S.log[today()];if(!L)return;L.splice(i,1);save();render()}
+function addFree(){
+  dlgOpen('<h2>Autre aliment</h2><label>Nom</label><input id="fn" placeholder="Steak haché"><div class="grid2"><div><label>Protéines (g)</label><input id="fp" type="number" inputmode="decimal"></div><div><label>Calories</label><input id="fk" type="number" inputmode="decimal"></div></div><div id="ferr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
+    '<div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="saveFree()">Ajouter</button></div>');
+}
+function saveFree(){const p=num(v('fp')),k=num(v('fk'))||0;if(!(p>=0)||v('fp')===''){err('ferr','Indique les protéines');return}pushEntry(v('fn')||'Autre',p,k);dlgClose()}
+function addWeight(){const kg=num(v('wIn'));if(!(kg>30&&kg<250)){toast('Poids invalide');return}S.weights=S.weights.filter(x=>x.d!==today());S.weights.push({d:today(),kg});S.weights.sort((a,b)=>a.d.localeCompare(b.d));document.getElementById('wIn').value='';save();render();toast('Pesée notée')}
+function addWaist(){const cm=num(v('cIn'));if(!(cm>40&&cm<200)){toast('Mesure invalide');return}S.waist=S.waist.filter(x=>x.d!==today());S.waist.push({d:today(),cm});S.waist.sort((a,b)=>a.d.localeCompare(b.d));document.getElementById('cIn').value='';save();render();toast('Tour de taille noté')}
+function delMeasure(t,d){if(!confirm('Supprimer cette mesure ?'))return;if(t==='w')S.weights=S.weights.filter(x=>x.d!==d);else S.waist=S.waist.filter(x=>x.d!==d);save();render()}
+function setPhase(p){if(p===cur().p)return;if(!confirm('Passer en '+PH[p].n.toLowerCase()+' à partir d\'aujourd\'hui ?'))return;
+  if(cur().start===today())cur().p=p;else S.phases.push({p,start:today()});save();render();toast('Phase : '+PH[p].n)}
+function setPhaseStart(d){if(!d||d>today())return render();const prev=S.phases[S.phases.length-2];if(prev&&d<=prev.start){toast('Date avant la phase précédente');return render()}cur().start=d;save();render()}
+function setTgt(ph,key,val){const n=Math.round(num(val));if(n>0){S.targets[ph][key]=n;save();render()}}
+function toggleDay(d){S.days=S.days.includes(d)?S.days.filter(x=>x!==d):[...S.days,d];save();render()}
+
+function editFood(id){
+  const f=S.foods.find(x=>x.id===id)||{name:'',p:'',k:''};
+  dlgOpen('<h2>'+(id?'Modifier':'Nouvel aliment')+'</h2><label>Nom</label><input id="fn" value="'+esc(f.name)+'" placeholder="3 œufs"><div class="grid2"><div><label>Protéines (g)</label><input id="fp" type="number" inputmode="decimal" value="'+f.p+'"></div><div><label>Calories</label><input id="fk" type="number" inputmode="decimal" value="'+f.k+'"></div></div><div id="ferr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
+   '<div class="row" style="margin-top:14px">'+(id?'<button class="btn danger" onclick="delFood(\''+id+'\')">Supprimer</button>':'<button class="btn" onclick="dlgClose()">Annuler</button>')+'<button class="btn pri" onclick="saveFood(\''+(id||'')+'\')">Enregistrer</button></div>');
+}
+function saveFood(id){const name=v('fn').trim(),p=num(v('fp')),k=num(v('fk'))||0;
+  if(!name){err('ferr','Donne un nom');return}if(!(p>=0)||v('fp')===''){err('ferr','Indique les protéines');return}
+  if(id){Object.assign(S.foods.find(x=>x.id===id),{name,p,k})}else S.foods.push({id:uid(),name,p,k});save();dlgClose();render()}
+function delFood(id){if(!confirm('Supprimer cet aliment ?'))return;S.foods=S.foods.filter(x=>x.id!==id);S.groups.forEach(g=>g.items=g.items.filter(i=>i!==id));save();dlgClose();render()}
+function editGroup(id){
+  const g=S.groups.find(x=>x.id===id)||{name:'',items:[]};
+  dlgOpen('<h2>'+(id?'Modifier le groupe':'Nouveau groupe')+'</h2><label>Nom</label><input id="gn" value="'+esc(g.name)+'" placeholder="Mon déjeuner"><label>Aliments du groupe</label>'+
+   S.foods.map(f=>'<div class="chk"><input type="checkbox" value="'+f.id+'" '+(g.items.includes(f.id)?'checked':'')+'><span>'+esc(f.name)+' <span class="mut">'+f.p+' g</span></span></div>').join('')+
+   '<div id="gerr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px">'+(id?'<button class="btn danger" onclick="delGroup(\''+id+'\')">Supprimer</button>':'<button class="btn" onclick="dlgClose()">Annuler</button>')+'<button class="btn pri" onclick="saveGroup(\''+(id||'')+'\')">Enregistrer</button></div>');
+}
+function saveGroup(id){const name=v('gn').trim(),items=[...document.querySelectorAll('#dlg .chk input:checked')].map(x=>x.value);
+  if(!name){err('gerr','Donne un nom');return}if(!items.length){err('gerr','Choisis au moins un aliment');return}
+  if(id)Object.assign(S.groups.find(x=>x.id===id),{name,items});else S.groups.push({id:uid(),name,items});save();dlgClose();render()}
+function delGroup(id){if(!confirm('Supprimer ce groupe ?'))return;S.groups=S.groups.filter(x=>x.id!==id);save();dlgClose();render()}
+
+function exportData(){const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='sculptex-sauvegarde-'+today()+'.json';a.click();toast('Sauvegarde téléchargée')}
+function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.foods||!d.weights||!d.phases)throw 0;if(!confirm('Remplacer les données actuelles par cette sauvegarde ?'))return;S=d;save();render();toast('Données restaurées')}catch(e){toast('Fichier non valide')}};r.readAsText(f);inp.value=''}
+
+const v=id=>document.getElementById(id).value;
+const err=(id,t)=>document.getElementById(id).textContent=t;
+function dlgOpen(h){const d=document.getElementById('dlg');d.innerHTML=h;d.showModal()}
+function dlgClose(){document.getElementById('dlg').close()}
+
+let lastDay=today();
+setInterval(()=>{if(today()!==lastDay){lastDay=today();render()}},60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)render()});
+setRange(90,document.querySelector('[data-r="90"]'));
+render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>

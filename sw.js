@@ -1,5 +1,5 @@
-const CACHE = 'sculptex-v2';
-const FILES = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'sculptex-v3';
+const FILES = ['./', 'index.html', 'manifest.json', 'icon-192-v2.png', 'icon-512-v2.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

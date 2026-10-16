@@ -69,6 +69,16 @@ nav button.on{color:var(--gold);background:radial-gradient(ellipse at 50% 0%,rgb
 .list>div{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line2);gap:8px}
 .list>div:last-child{border-bottom:none}
 .x{background:none;border:none;color:var(--mut);font-size:22px;padding:0 6px}
+.hrow{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-bottom:1px solid var(--line2);padding:12px 0;text-align:left}
+.hrow:last-child{border-bottom:none}
+.hd{width:62px;flex-shrink:0;font-family:var(--serif);font-weight:700;color:var(--gold2);font-size:15px}
+.hv{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.hv>span{display:flex;flex-direction:column;align-items:flex-end;font-size:15px;color:var(--txt);white-space:nowrap}
+.hv small{font-size:12px;margin-top:2px;color:var(--mut)}
+.hv .e{color:var(--line2)}
+.hcap{display:flex;gap:10px;padding:0 0 4px;font-size:12px;color:var(--mut)}
+.hcap>span:first-child{width:62px;flex-shrink:0}
+.hcap>div{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:right}
 .alert{border-radius:14px;padding:12px 14px;margin-bottom:12px;font-size:14px;border:1px solid}
 .alert.warn{background:rgba(60,38,10,.85);color:#ffd398;border-color:#6a4516}
 .alert.info{background:rgba(30,25,14,.85);color:var(--gold2);border-color:rgba(233,194,122,.3)}
@@ -189,6 +199,8 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
       <div class="row"><input id="cIn" type="number" inputmode="decimal" step="0.5" placeholder="88 cm"><button class="btn pri" onclick="addWaist()">Noter</button></div>
       <label>% de gras (balance, facultatif)</label>
       <div class="row"><input id="fIn" type="number" inputmode="decimal" step="0.1" placeholder="14,4 %"><button class="btn pri" onclick="addFat()">Noter</button></div>
+      <label style="margin-top:16px">Jours de pesée</label>
+      <div id="days"></div>
     </div>
     <div class="card" id="goalCard"></div>
     <div class="card">
@@ -209,7 +221,8 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
     </div>
     <div class="card">
       <h2>Historique</h2>
-      <div class="list" id="histList"></div>
+      <div id="histList"></div>
+      <button class="btn" id="histMore" style="width:100%;margin-top:12px;display:none" onclick="histAll=!histAll;render()"></button>
     </div>
   </div>
 </section>
@@ -295,8 +308,6 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
     <div class="card">
       <h2>Outils</h2>
       <button class="btn" style="width:100%" onclick="openOther()">Calculer pour quelqu'un</button>
-      <label style="margin-top:16px">Jours de pesée</label>
-      <div id="days"></div>
       <label style="margin-top:16px">Sauvegarde</label>
       <div class="mut" style="margin-bottom:10px">Tes données et tes photos restent sur ton téléphone. Fais une sauvegarde de temps en temps.</div>
       <div class="mut" id="bkInfo" style="margin-bottom:10px"></div>
@@ -324,7 +335,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
 const KEY='sculptex-v1',TABKEY='sculptex-tab';
 const TABS=['today','foods','track','set'];
 const PH={seche:{n:'Sèche',c:'#5fd690'},entretien:{n:'Entretien',c:'#7fb2ff'},masse:{n:'Prise de masse',c:'#f5a04a'}};
-const ACT=[[1.2,'Sédentaire'],[1.375,'Léger (1–3/sem)'],[1.55,'Régulier (3–5/sem)'],[1.725,'Intense (6–7/sem)'],[1.9,'Extrême (+ métier)']];
+const ACT=[[1.2,'Sédentaire'],[1.375,'1 à 3 séances'],[1.55,'3 à 5 séances'],[1.725,'6 à 7 séances'],[1.9,'Métier physique']];
 const DAYN=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const $=id=>document.getElementById(id);
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -514,7 +525,7 @@ function render(){
   const ph=cur(),info=PH[ph.p],tg=S.targets[ph.p],w=weeksIn();
   const nextPlan=S.plan.filter(x=>x.start>today()).sort((a,b)=>a.start.localeCompare(b.start))[0];
   document.querySelectorAll('[data-lbl]').forEach(e=>{e.textContent=info.n+' · semaine '+(w+1);e.style.color=info.c});
-  const subs={today:fmtLong(new Date()).replace(/^./,c=>c.toUpperCase())+(nextPlan?' · '+PH[nextPlan.p].n+' le '+fmtD(nextPlan.start):''),track:HERO.track.s,foods:HERO.foods.s,set:HERO.set.s};
+  const subs={today:fmtLong(new Date()).replace(/^./,c=>c.toUpperCase())+(()=>{if(!nextPlan)return'';const n=daysBetween(today(),nextPlan.start);return n>=1&&n<=14?' · '+PH[nextPlan.p].n+(n===1?' demain':' dans '+n+' jours'):''})(),track:HERO.track.s,foods:HERO.foods.s,set:HERO.set.s};
   document.querySelectorAll('.hero').forEach(h=>{const s=h.querySelector('[data-sub]');if(s)s.textContent=subs[h.dataset.h]});
 
   /* alertes */
@@ -549,8 +560,7 @@ function render(){
   if(lastC){$('cLast').textContent=fr(lastC.cm,lastC.cm%1?1:0);const prev=S.waist.filter(x=>daysBetween(x.d,lastC.d)>=25).pop();$('cDiff').textContent=prev?'cm · '+((lastC.cm-prev.cm>0?'+':'')+fr(lastC.cm-prev.cm))+' en 1 mois':'cm · taille'}
   else{$('cLast').textContent='–';$('cDiff').textContent='cm · taille'}
   renderGoal();drawChart();renderDays();
-  const H=[...S.weights.map(x=>({d:x.d,t:'w',v:fr(x.kg)+' kg'})),...S.waist.map(x=>({d:x.d,t:'c',v:fr(x.cm)+' cm (taille)'})),...S.fat.map(x=>({d:x.d,t:'f',v:fr(x.pct)+' % (gras)'}))].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,12);
-  $('histList').innerHTML=H.length?H.map(h=>'<div><span>'+fmtD(h.d)+'</span><span>'+h.v+' <button class="x" onclick="delMeasure(\''+h.t+'\',\''+h.d+'\')">×</button></span></div>').join(''):'<div class="mut">Aucune mesure.</div>';
+  renderHist();
 
   /* aliments */
   $('foodList').innerHTML=S.foods.map(f=>'<div data-id="'+f.id+'"><span class="hdl" aria-label="Déplacer">≡</span><span style="flex:1;min-width:0">'+esc(f.name)+'<br><span class="mut">'+fN(f.p)+' g · '+frInt(f.k)+' kcal</span></span><button class="btn" onclick="editFood(\''+f.id+'\')">Modifier</button></div>').join('')||'<div class="mut">Aucun aliment.</div>';
@@ -928,6 +938,36 @@ function addFree(){
 function saveFree(){const p=num(v('fp')),k=num(v('fk'))||0;if(v('fp')===''||!(p>=0)){err('ferr','Indique les protéines');return}dlgClose();pushEntry(v('fn')||'Autre',p,k)}
 function addWeight(){const kg=num(v('wIn'));if(!(kg>30&&kg<250)){toast('Poids invalide');return}S.weights=S.weights.filter(x=>x.d!==today());S.weights.push({d:today(),kg});S.weights.sort((a,b)=>a.d.localeCompare(b.d));$('wIn').value='';save();render();vib();toast('Pesée notée')}
 function addWaist(){const cm=num(v('cIn'));if(!(cm>40&&cm<200)){toast('Mesure invalide');return}S.waist=S.waist.filter(x=>x.d!==today());S.waist.push({d:today(),cm});S.waist.sort((a,b)=>a.d.localeCompare(b.d));if(S.goal&&S.goal.cm&&S.goal.cmStart==null)S.goal.cmStart=cm;$('cIn').value='';save();render();vib();toast('Tour de taille noté')}
+let histAll=false;
+function renderHist(){
+  const T=[['w','weights','kg','kg',1],['c','waist','cm','cm',1],['f','fat','pct','%',1]];
+  const dates=[...new Set([...S.weights,...S.waist,...S.fat].map(x=>x.d))].sort((a,b)=>b.localeCompare(a));
+  if(!dates.length){$('histList').innerHTML='<div class="mut">Aucune mesure.</div>';$('histMore').style.display='none';return}
+  const cell=(t,d)=>{const [k,arr,f,u]=T.find(x=>x[0]===t),L=S[arr],i=L.findIndex(x=>x.d===d);if(i<0)return'<span class="e">—</span>';
+    const val=L[i][f],prev=i>0?L[i-1][f]:null;let df='';
+    if(prev!=null){const dd=Math.round((val-prev)*10)/10;if(dd===0)df='<small>=</small>';else{const ph=phaseAt(d);let good=null;
+      if(t==='w')good=ph==='seche'?dd<0:ph==='masse'?dd>0:null;else if(t==='c')good=ph==='masse'?null:dd<0;else good=dd<0;
+      df='<small style="color:'+(good==null?'var(--mut)':good?'var(--green)':'var(--orange)')+'">'+(dd>0?'+':'−')+fr(Math.abs(dd))+'</small>'}}
+    return '<span>'+fr(val,val%1?1:0)+' '+u+df+'</span>'};
+  const list=histAll?dates:dates.slice(0,5);
+  $('histList').innerHTML='<div class="hcap"><span></span><div><span>Poids</span><span>Taille</span><span>% gras</span></div></div>'+
+    list.map(d=>'<button class="hrow" onclick="editMeasures(\''+d+'\')"><span class="hd">'+fmtD(d)+'</span><span class="hv">'+cell('w',d)+cell('c',d)+cell('f',d)+'</span></button>').join('');
+  const m=$('histMore');if(dates.length>5){m.style.display='';m.textContent=histAll?'Réduire':'Voir tout ('+dates.length+' jours)'}else m.style.display='none';
+}
+function editMeasures(d){
+  const g=(L,f)=>{const x=L.find(y=>y.d===d);return x?String(x[f]).replace('.',','):''};
+  dlgOpen('<h2>'+parseD(d).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}).replace(/^./,c=>c.toUpperCase())+'</h2><div class="mut">Vide un champ pour supprimer cette valeur.</div>'+
+   '<label>Poids (kg)</label><input id="emW" type="text" inputmode="decimal" value="'+g(S.weights,'kg')+'">'+
+   '<label>Tour de taille (cm)</label><input id="emC" type="text" inputmode="decimal" value="'+g(S.waist,'cm')+'">'+
+   '<label>% de gras</label><input id="emF" type="text" inputmode="decimal" value="'+g(S.fat,'pct')+'">'+
+   '<div id="emErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn danger" onclick="delDay(\''+d+'\')">Tout supprimer</button><button class="btn pri" onclick="saveMeasures(\''+d+'\')">Enregistrer</button></div>');
+}
+function saveMeasures(d){
+  const F=[['emW','weights','kg',30,250,'Poids invalide'],['emC','waist','cm',40,200,'Tour de taille invalide'],['emF','fat','pct',3,60,'% de gras invalide']],out={};
+  for(const [id,arr,f,lo,hi,msg] of F){const raw=v(id).trim();if(raw===''){out[arr]=null;continue}const n=num(raw);if(!(n>=lo&&n<=hi)){err('emErr',msg);return}out[arr]=n}
+  for(const [id,arr,f] of F){S[arr]=S[arr].filter(x=>x.d!==d);if(out[arr]!=null){S[arr].push({d,[f]:out[arr]});S[arr].sort((a,b)=>a.d.localeCompare(b.d))}}
+  save();dlgClose();render();toast('Mesures mises à jour')}
+function delDay(d){if(!confirm('Supprimer toutes les mesures du '+fmtD(d)+' ?'))return;S.weights=S.weights.filter(x=>x.d!==d);S.waist=S.waist.filter(x=>x.d!==d);S.fat=S.fat.filter(x=>x.d!==d);save();dlgClose();render()}
 function delMeasure(t,d){if(!confirm('Supprimer cette mesure ?'))return;if(t==='w')S.weights=S.weights.filter(x=>x.d!==d);else if(t==='f')S.fat=S.fat.filter(x=>x.d!==d);else S.waist=S.waist.filter(x=>x.d!==d);save();render()}
 function addFat(){const pct=num(v('fIn'));if(!(pct>=3&&pct<=60)){toast('% de gras invalide');return}S.fat=S.fat.filter(x=>x.d!==today());S.fat.push({d:today(),pct});S.fat.sort((a,b)=>a.d.localeCompare(b.d));$('fIn').value='';save();render();vib();toast('% de gras noté')}
 function switchPhase(p){if(cur().start===today())cur().p=p;else S.phases.push({p,start:today()})}
@@ -1000,10 +1040,14 @@ function applyTargets(){if(!window._N)return;S.targets=window._N;S.autoLast=toda
 
 function editFood(id){
   const f=S.foods.find(x=>x.id===id)||{name:'',p:'',k:''};
-  dlgOpen('<h2>'+(id?'Modifier':'Nouvel aliment')+'</h2><label>Nom</label><input id="fn" value="'+esc(f.name)+'" placeholder="3 œufs"><div class="grid2"><div><label>Protéines (g)</label><input id="fp" type="number" inputmode="decimal" value="'+f.p+'"></div><div><label>Calories</label><input id="fk" type="number" inputmode="decimal" value="'+f.k+'"></div></div><div id="ferr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
+  dlgOpen('<h2>'+(id?'Modifier':'Nouvel aliment')+'</h2><label>Nom</label><input id="fn" value="'+esc(f.name)+'" placeholder="3 œufs"><div class="chk" style="margin-top:10px"><input type="checkbox" id="f100" onchange="f100Upd()"><span>Valeurs pour 100 g / 100 ml (étiquette)</span></div><div class="grid2"><div><label id="fpL">Protéines (g)</label><input id="fp" type="number" inputmode="decimal" value="'+f.p+'" oninput="f100Upd()"></div><div><label id="fkL">Calories</label><input id="fk" type="number" inputmode="decimal" value="'+f.k+'" oninput="f100Upd()"></div></div><div id="f100Box" style="display:none"><div class="grid2"><div><label>Ma quantité</label><input id="fq" type="number" inputmode="decimal" placeholder="200" oninput="f100Upd()"></div><div><label>Unité</label><select id="fu" onchange="f100Upd()"><option value="g">g</option><option value="ml">ml</option></select></div></div><div class="calc" style="margin-top:10px"><span>Pour ta portion</span><b id="f100Res">–</b></div></div><div id="ferr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
    '<div class="row" style="margin-top:14px">'+(id?'<button class="btn danger" onclick="delFood(\''+id+'\')">Supprimer</button>':'<button class="btn" onclick="dlgClose()">Annuler</button>')+'<button class="btn pri" onclick="saveFood(\''+(id||'')+'\')">Enregistrer</button></div>');
 }
-function saveFood(id){const name=v('fn').trim(),p=num(v('fp')),k=num(v('fk'))||0;
+function f100Calc(){const q=num(v('fq')),p=num(v('fp')),k=num(v('fk'))||0;if(!(q>0)||!(p>=0))return null;return{q,u:v('fu'),p:Math.round(p*q/10)/10,k:Math.round(k*q/100)}}
+function f100Upd(){const on=$('f100').checked;$('f100Box').style.display=on?'':'none';$('fpL').textContent=on?'Protéines pour 100':'Protéines (g)';$('fkL').textContent=on?'Calories pour 100':'Calories';
+  if(on){const r=f100Calc();$('f100Res').textContent=r?fN(r.p)+' g · '+frInt(r.k)+' kcal':'–'}}
+function saveFood(id){let name=v('fn').trim(),p=num(v('fp')),k=num(v('fk'))||0;
+  if($('f100').checked){const r=f100Calc();if(!r){err('ferr','Indique les valeurs pour 100 et ta quantité');return}p=r.p;k=r.k;const tag=fr(r.q,r.q%1?1:0)+' '+r.u;if(name&&!name.includes(tag))name+=' · '+tag}
   if(!name){err('ferr','Donne un nom');return}if(v('fp')===''||!(p>=0)){err('ferr','Indique les protéines');return}
   if(id)Object.assign(S.foods.find(x=>x.id===id),{name,p,k});else S.foods.push({id:uid(),name,p,k});save();dlgClose();render()}
 function delFood(id){if(!confirm('Supprimer cet aliment ?'))return;S.foods=S.foods.filter(x=>x.id!==id);S.groups.forEach(g=>g.items=g.items.filter(i=>i!==id));save();dlgClose();render()}

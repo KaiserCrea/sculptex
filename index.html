@@ -113,6 +113,9 @@ input[type=checkbox]{accent-color:#d9ab57;width:20px;height:20px;flex-shrink:0}
 .tgt .tv{white-space:nowrap;color:var(--txt)}
 .tgt.cur{background:rgba(233,194,122,.07);border-radius:12px}
 .tgt .bdg{font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(233,194,122,.18);color:var(--gold2);margin-left:6px;font-family:system-ui,sans-serif;font-weight:600}
+dialog button:focus,.mhT:focus{outline:none}
+.hdl{touch-action:none;color:var(--gold);font-size:22px;padding:6px 10px 6px 0;cursor:grab;user-select:none;flex-shrink:0}
+.list>div.dragging{background:rgba(233,194,122,.12);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
 .morebtn{width:100%;margin-top:10px;background:none;border:1px dashed rgba(233,194,122,.4);border-radius:14px;padding:11px;color:var(--gold2);font-size:14px}
 details#planDet{margin-top:14px}
 .mealH .mn{flex:1;font-family:var(--serif);font-weight:700;font-size:17px;color:var(--gold2)}
@@ -170,6 +173,10 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
       <div><span class="num metal" id="cLast">–</span><span class="mut" id="cDiff">cm · taille</span></div>
     </div>
     <div class="card">
+      <h2>Mes journées</h2>
+      <div id="daysList"></div>
+    </div>
+    <div class="card">
       <h2>Nouvelle mesure</h2>
       <label style="margin-top:0">Pesée (le matin, à jeun)</label>
       <div class="row"><input id="wIn" type="number" inputmode="decimal" step="0.1" placeholder="87,0 kg"><button class="btn pri" onclick="addWeight()">Noter</button></div>
@@ -213,6 +220,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
     </div>
     <div class="card">
       <h2>Mes aliments</h2>
+      <div class="mut" style="margin-bottom:10px">Glisse ≡ pour choisir l'ordre : les 6 premiers s'affichent sur l'écran Aujourd'hui.</div>
       <button class="btn pri" style="width:100%;margin-bottom:6px" onclick="editFood()">+ Nouvel aliment</button>
       <div class="list" id="foodList"></div>
     </div>
@@ -419,7 +427,7 @@ function go(t,back){
   requestAnimationFrame(()=>window.scrollTo(0,scrollPos[t]||0));
 }
 let tx=0,ty=0,tOk=false;
-$('main').addEventListener('touchstart',e=>{const t=e.touches[0];tx=t.clientX;ty=t.clientY;tOk=!e.target.closest('input,select,textarea,#chart,.seg,.cmp')},{passive:true});
+$('main').addEventListener('touchstart',e=>{const t=e.touches[0];tx=t.clientX;ty=t.clientY;tOk=!e.target.closest('input,select,textarea,#chart,.seg,.cmp,.hdl')},{passive:true});
 $('main').addEventListener('touchend',e=>{
   if(!tOk||$('dlg').open)return;const t=e.changedTouches[0],dx=t.clientX-tx,dy=t.clientY-ty;
   if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.6)return;
@@ -530,13 +538,13 @@ function render(){
   $('wTrTxt').textContent=t!=null?'/ sem · '+tm.txt:'tendance '+tm.txt;$('wTrTxt').style.color=tm.c;
   if(lastC){$('cLast').textContent=fr(lastC.cm,lastC.cm%1?1:0);const prev=S.waist.filter(x=>daysBetween(x.d,lastC.d)>=25).pop();$('cDiff').textContent=prev?'cm · '+((lastC.cm-prev.cm>0?'+':'')+fr(lastC.cm-prev.cm))+' en 1 mois':'cm · taille'}
   else{$('cLast').textContent='–';$('cDiff').textContent='cm · taille'}
-  renderGoal();drawChart();
+  renderGoal();drawChart();renderDays();
   const H=[...S.weights.map(x=>({d:x.d,t:'w',v:fr(x.kg)+' kg'})),...S.waist.map(x=>({d:x.d,t:'c',v:fr(x.cm)+' cm (taille)'})),...S.fat.map(x=>({d:x.d,t:'f',v:fr(x.pct)+' % (gras)'}))].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,12);
   $('histList').innerHTML=H.length?H.map(h=>'<div><span>'+fmtD(h.d)+'</span><span>'+h.v+' <button class="x" onclick="delMeasure(\''+h.t+'\',\''+h.d+'\')">×</button></span></div>').join(''):'<div class="mut">Aucune mesure.</div>';
 
   /* aliments */
-  $('foodList').innerHTML=S.foods.map(f=>'<div><span>'+esc(f.name)+'<br><span class="mut">'+fN(f.p)+' g · '+frInt(f.k)+' kcal</span></span><button class="btn" onclick="editFood(\''+f.id+'\')">Modifier</button></div>').join('')||'<div class="mut">Aucun aliment.</div>';
-  $('groupList').innerHTML=S.groups.map(g=>{const t=groupTot(g);return '<div><span>'+esc(g.name)+'<br><span class="mut">'+fN(t.p)+' g · '+frInt(t.k)+' kcal</span></span><button class="btn" onclick="editGroup(\''+g.id+'\')">Modifier</button></div>'}).join('')||'<div class="mut">Aucun groupe.</div>';
+  $('foodList').innerHTML=S.foods.map(f=>'<div data-id="'+f.id+'"><span class="hdl" aria-label="Déplacer">≡</span><span style="flex:1;min-width:0">'+esc(f.name)+'<br><span class="mut">'+fN(f.p)+' g · '+frInt(f.k)+' kcal</span></span><button class="btn" onclick="editFood(\''+f.id+'\')">Modifier</button></div>').join('')||'<div class="mut">Aucun aliment.</div>';
+  $('groupList').innerHTML=S.groups.map(g=>{const t=groupTot(g);return '<div data-id="'+g.id+'"><span class="hdl" aria-label="Déplacer">≡</span><span style="flex:1;min-width:0">'+esc(g.name)+'<br><span class="mut">'+fN(t.p)+' g · '+frInt(t.k)+' kcal</span></span><button class="btn" onclick="editGroup(\''+g.id+'\')">Modifier</button></div>'}).join('')||'<div class="mut">Aucun groupe.</div>';
 
   /* réglages */
   $('phaseSeg').innerHTML=Object.keys(PH).map(k=>'<button class="'+(k===ph.p?'on':'')+'" onclick="setPhase(\''+k+'\')">'+PH[k].n+'</button>').join('');
@@ -568,26 +576,28 @@ function mealOf(d){const h=d.getHours()+d.getMinutes()/60;return h<11?'pdj':h<15
 function entryMeal(e){return e.meal||(e.t>1e12?mealOf(new Date(Math.floor(e.t))):'pdj')}
 const openMeals=new Set([mealOf(new Date())]);
 let G=[];
-function renderMeals(L){
-  G=[];let h='';
+let VD=null; /* jour ouvert dans « Mes journées » (null = aucun) */
+function mealsHTML(L,day,allOpen){
+  let h='';
   MEALS.forEach(([m,label])=>{
     const es=L.filter(e=>entryMeal(e)===m);
-    const tp=es.reduce((a,e)=>a+e.p,0),tk=es.reduce((a,e)=>a+e.k,0),open=openMeals.has(m)&&es.length>0;
-    h+='<div class="meal'+(open?' open':'')+(es.length?'':' empty')+'"><div class="mealH"><button class="mhT" onclick="toggleMeal(\''+m+'\')"><span class="mn">'+label+'</span><span class="mt">'+(es.length?fN(tp)+' g · '+frInt(tk)+' kcal':'—')+'</span><span class="chev"'+(es.length?'':' style="visibility:hidden"')+'>›</span></button><button class="qa" aria-label="Saisie rapide" onclick="quickAdd(\''+m+'\')">+</button></div>';
+    const tp=es.reduce((a,e)=>a+e.p,0),tk=es.reduce((a,e)=>a+e.k,0),open=(allOpen||openMeals.has(m))&&es.length>0;
+    h+='<div class="meal'+(open?' open':'')+(es.length?'':' empty')+'"><div class="mealH"><button class="mhT" onclick="'+(allOpen?'':'toggleMeal(\''+m+'\')')+'"><span class="mn">'+label+'</span><span class="mt">'+(es.length?fN(tp)+' g · '+frInt(tk)+' kcal':'—')+'</span><span class="chev"'+(es.length&&!allOpen?'':' style="visibility:hidden"')+'>›</span></button><button class="qa" aria-label="Saisie rapide" onclick="quickAdd(\''+m+'\',\''+day+'\')">+</button></div>';
     if(open){
-      const groups=[];es.forEach(e=>{const key=e.name+'|'+e.p+'|'+e.k;let g=groups.find(x=>x.key===key);if(!g){g={key,meal:m,name:e.name,p:e.p,k:e.k,ts:[]};groups.push(g)}g.ts.push(e.t)});
+      const groups=[];es.forEach(e=>{const key=e.name+'|'+e.p+'|'+e.k;let g=groups.find(x=>x.key===key);if(!g){g={key,day,meal:m,name:e.name,p:e.p,k:e.k,ts:[]};groups.push(g)}g.ts.push(e.t)});
       groups.forEach(g=>{const i=G.push(g)-1,n=g.ts.length;
         h+='<div class="it" oncontextmenu="itemMenu('+i+');return false"><span class="nm" onclick="itemMenu('+i+')">'+esc(g.name)+(n>1?' <b>×'+n+'</b>':'')+'</span><span class="rt">'+fN(g.p*n)+' g · '+frInt(g.k*n)+' kcal</span><span class="ctl"><button aria-label="Retirer un" onclick="grpMinus('+i+')">−</button><button aria-label="Ajouter un" onclick="grpPlus('+i+')">+</button></span></div>'});
     }
     h+='</div>';
   });
-  $('todayList').innerHTML=h;
+  return h;
 }
+function renderMeals(L){G=[];$('todayList').innerHTML=mealsHTML(L,today(),false)}
 let quickAll=false,quickQ='';
-const norm=t=>t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const norm=t=>t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function quickItems(){return[...S.groups.map(g=>({t:'g',id:g.id,name:g.name,...groupTot(g)})),...S.foods.map(f=>({t:'f',...f}))]}
 function renderQuick(){
-  const q=[...S.groups.map(g=>({t:'g',id:g.id,name:g.name,...groupTot(g)})),...S.foods.map(f=>({t:'f',...f}))]
-    .map((x,i)=>({...x,i,u:S.use[x.id]||0})).sort((a,b)=>b.u-a.u||a.i-b.i);
+  const q=quickItems();
   const btn=x=>'<button class="fbtn" onclick="addItem(\''+x.t+'\',\''+x.id+'\')"><span>'+esc(x.name)+'</span><b>+'+fN(x.p)+' g</b></button>';
   let list=q,more='';
   const showSearch=quickAll&&q.length>8;
@@ -601,29 +611,81 @@ function renderQuick(){
   $('quick').innerHTML=list.map(btn).join('')||'<div class="mut" style="grid-column:1/-1">Aucun aliment trouvé.</div>';
   $('quickMore').innerHTML=more;
 }
-function quickAdd(m){
-  const label=MEALS.find(x=>x[0]===m)[1];
-  dlgOpen('<h2>Saisie rapide · '+label+'</h2><div class="mut">Ajouté à ce repas, sans être enregistré dans tes aliments.</div><label>Nom (facultatif)</label><input id="qaN" placeholder="Pâtes poulet"><div class="grid2"><div><label>Protéines (g)</label><input id="qaP" type="number" inputmode="decimal"></div><div><label>Calories</label><input id="qaK" type="number" inputmode="decimal"></div></div><div id="qaErr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
-    '<div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="saveQuick(\''+m+'\')">Ajouter</button></div>');
+function quickAdd(m,day){
+  day=day||today();const label=MEALS.find(x=>x[0]===m)[1];
+  dlgOpen('<h2>Saisie rapide · '+label+'</h2><div class="mut">'+(day===today()?'Ajouté à ce repas':'Ajouté au '+fmtLong(parseD(day)))+', sans être enregistré dans tes aliments.</div><label>Nom (facultatif)</label><input id="qaN" placeholder="Pâtes poulet"><div class="grid2"><div><label>Protéines (g)</label><input id="qaP" type="number" inputmode="decimal"></div><div><label>Calories</label><input id="qaK" type="number" inputmode="decimal"></div></div><div id="qaErr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
+    '<div class="row" style="margin-top:14px"><button class="btn" onclick="'+(day===today()?'dlgClose()':'openDay(\''+day+'\')')+'">Annuler</button><button class="btn pri" onclick="saveQuick(\''+m+'\',\''+day+'\')">Ajouter</button></div>');
 }
-function saveQuick(m){
+function saveQuick(m,day){
   const p=num(v('qaP')),k=num(v('qaK'));
   if(v('qaP')===''&&v('qaK')===''){err('qaErr','Indique au moins les calories ou les protéines');return}
   if((v('qaP')!==''&&!(p>=0))||(v('qaK')!==''&&!(k>=0))){err('qaErr','Valeur invalide');return}
-  dlgClose();openMeals.add(m);pushEntry(v('qaN').trim()||'Plat',p||0,k||0,m);
+  const name=v('qaN').trim()||'Plat';
+  if(day&&day!==today()){pushEntry(name,p||0,k||0,m,day);openDay(day);return}
+  dlgClose();openMeals.add(m);pushEntry(name,p||0,k||0,m);
 }
 function toggleMeal(m){openMeals.has(m)?openMeals.delete(m):openMeals.add(m);render()}
-function removeByT(t){const L=S.log[today()];if(!L)return;const i=L.findIndex(e=>e.t===t);if(i>=0)L.splice(i,1)}
-function grpMinus(i){const g=G[i];if(!g)return;removeByT(g.ts[g.ts.length-1]);save();render();vib()}
-function grpPlus(i){const g=G[i];if(!g)return;openMeals.add(g.meal);pushEntry(g.name,g.p,g.k,g.meal)}
+function removeByT(t,day){const L=S.log[day||today()];if(!L)return;const i=L.findIndex(e=>e.t===t);if(i>=0)L.splice(i,1);if(!L.length&&day&&day!==today())delete S.log[day]}
+function afterDayEdit(day){save();render();if(day!==today())openDay(day)}
+function grpMinus(i){const g=G[i];if(!g)return;removeByT(g.ts[g.ts.length-1],g.day);afterDayEdit(g.day);vib()}
+function grpPlus(i){const g=G[i];if(!g)return;if(g.day===today())openMeals.add(g.meal);pushEntry(g.name,g.p,g.k,g.meal,g.day);if(g.day!==today())openDay(g.day)}
 function itemMenu(i){
   const g=G[i];if(!g)return;window._gi=i;
-  dlgOpen('<h2>'+esc(g.name)+'</h2><div class="mut">'+g.ts.length+' × '+fr(g.p,g.p%1?1:0)+' g · '+frInt(g.k)+' kcal</div><label>Déplacer vers</label><div class="mvg">'+
+  dlgOpen('<h2>'+esc(g.name)+'</h2><div class="mut">'+g.ts.length+' × '+fN(g.p)+' g · '+frInt(g.k)+' kcal</div><label>Déplacer vers</label><div class="mvg">'+
     MEALS.map(([m,l])=>'<button class="btn'+(m===g.meal?' pri':'')+'" onclick="moveGrp(\''+m+'\')">'+l+'</button>').join('')+
-    '</div><div class="row" style="margin-top:16px"><button class="btn danger" onclick="delGrp()">Tout supprimer</button><button class="btn" onclick="dlgClose()">Fermer</button></div>');
+    '</div><div class="row" style="margin-top:16px"><button class="btn danger" onclick="delGrp()">Tout supprimer</button><button class="btn" onclick="'+(g.day===today()?'dlgClose()':'openDay(\''+g.day+'\')')+'">Fermer</button></div>');
 }
-function moveGrp(m){const g=G[window._gi];if(!g)return;(S.log[today()]||[]).forEach(e=>{if(g.ts.includes(e.t))e.meal=m});openMeals.add(m);save();dlgClose();render();toast('Déplacé vers '+MEALS.find(x=>x[0]===m)[1].toLowerCase())}
-function delGrp(){const g=G[window._gi];if(!g)return;g.ts.forEach(removeByT);save();dlgClose();render()}
+function moveGrp(m){const g=G[window._gi];if(!g)return;(S.log[g.day]||[]).forEach(e=>{if(g.ts.includes(e.t))e.meal=m});if(g.day===today()){openMeals.add(m);dlgClose()}afterDayEdit(g.day);toast('Déplacé vers '+MEALS.find(x=>x[0]===m)[1].toLowerCase())}
+function delGrp(){const g=G[window._gi];if(!g)return;g.ts.forEach(t=>removeByT(t,g.day));if(g.day===today())dlgClose();afterDayEdit(g.day)}
+
+/* ---------- mes journées ---------- */
+let daysShown=14;
+function dayTot(d){const L=S.log[d]||[];return{p:L.reduce((a,e)=>a+e.p,0),k:L.reduce((a,e)=>a+e.k,0),n:L.length}}
+function dayStatus(d,t){const tg=S.targets[phaseAt(d)];const okP=t.p>=tg.p*0.9,okK=t.k<=tg.k*1.1&&t.k>=tg.k*0.8;return okP&&okK?'var(--green)':(okP||okK)?'var(--gold)':'var(--orange)'}
+function renderDays(){
+  const now=parseD(today()),past=[];
+  for(let i=1;i<=7;i++){const d=dkey(new Date(now-i*864e5)),t=dayTot(d);if(t.n)past.push(t)}
+  const avg=past.length?{p:past.reduce((a,t)=>a+t.p,0)/past.length,k:past.reduce((a,t)=>a+t.k,0)/past.length}:null;
+  const keys=Object.keys(S.log).filter(d=>d<=today()&&(S.log[d]||[]).length).sort().reverse();
+  let h='<div class="stats" style="padding:4px 0 10px"><div><span class="num metal">'+(avg?fN(avg.p):'–')+'</span><span class="mut">g · moyenne 7 j</span></div><div><span class="num metal">'+(avg?frInt(avg.k):'–')+'</span><span class="mut">kcal · moyenne 7 j</span></div><div><span class="num metal">'+past.length+'/7</span><span class="mut">jours notés</span></div></div>';
+  h+='<div class="mut" style="margin-bottom:4px">Moyenne des 7 derniers jours, sans aujourd\'hui. Appuie sur un jour pour voir le détail ou le corriger.</div>';
+  h+=keys.length?'<div class="list">'+keys.slice(0,daysShown).map(d=>{const t=dayTot(d),c=dayStatus(d,t);
+    const lbl=d===today()?'Aujourd\'hui':parseD(d).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+    return '<div onclick="openDay(\''+d+'\')" style="cursor:pointer"><span><span style="color:'+c+'">●</span> '+lbl.replace(/^./,x=>x.toUpperCase())+'</span><span class="mut" style="white-space:nowrap">'+fN(t.p)+' g · '+frInt(t.k)+' kcal ›</span></div>'}).join('')+'</div>':'<div class="mut">Aucune journée notée pour l\'instant.</div>';
+  if(keys.length>daysShown)h+='<button class="morebtn" onclick="daysShown+=14;renderDays()">Voir plus</button>';
+  h+='<div class="mut" style="margin-top:8px"><span style="color:var(--green)">●</span> cibles atteintes &nbsp; <span style="color:var(--gold)">●</span> à moitié &nbsp; <span style="color:var(--orange)">●</span> loin des cibles</div>';
+  h+='<button class="btn" style="width:100%;margin-top:12px" onclick="pickDay()">Corriger un autre jour…</button>';
+  $('daysList').innerHTML=h;
+}
+function pickDay(){
+  dlgOpen('<h2>Choisir un jour</h2><input type="date" id="pkD" max="'+today()+'" value="'+dkey(new Date(parseD(today())-864e5))+'"><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="if(v(\'pkD\')&&v(\'pkD\')<=today())openDay(v(\'pkD\'))">Ouvrir</button></div>');
+}
+function openDay(d){
+  VD=d;G=[];const t=dayTot(d),tg=S.targets[phaseAt(d)];
+  const title=d===today()?'Aujourd\'hui':fmtLong(parseD(d)).replace(/^./,x=>x.toUpperCase());
+  dlgOpen('<h2>'+title+'</h2><div class="calc"><span>Protéines</span><b>'+fN(t.p)+' / '+tg.p+' g</b></div><div class="calc"><span>Calories</span><b>'+frInt(t.k)+' / '+frInt(tg.k)+' kcal</b></div>'+
+    '<div style="margin-top:6px">'+mealsHTML(S.log[d]||[],d,true)+'</div><button class="btn pri" style="width:100%;margin-top:12px" onclick="VD=null;dlgClose();render()">Fermer</button>');
+}
+/* ---------- tri par glisser ---------- */
+let drag=null;
+document.addEventListener('pointerdown',e=>{
+  const h=e.target.closest('.hdl');if(!h)return;
+  const row=h.parentNode,list=row.parentNode;e.preventDefault();
+  drag={row,list,id:list.id};row.classList.add('dragging');try{h.setPointerCapture(e.pointerId)}catch(x){}vib();
+});
+document.addEventListener('pointermove',e=>{
+  if(!drag)return;e.preventDefault();
+  const rows=[...drag.list.children].filter(r=>r!==drag.row&&r.dataset.id);
+  let before=null;for(const r of rows){const b=r.getBoundingClientRect();if(e.clientY<b.top+b.height/2){before=r;break}}
+  if(before)drag.list.insertBefore(drag.row,before);else drag.list.appendChild(drag.row);
+  const lb=drag.list.getBoundingClientRect();if(e.clientY<70)window.scrollBy(0,-12);else if(e.clientY>innerHeight-110)window.scrollBy(0,12);
+},{passive:false});
+const endDrag=()=>{
+  if(!drag)return;const ids=[...drag.list.children].map(r=>r.dataset.id).filter(Boolean);
+  const arr=drag.id==='foodList'?S.foods:S.groups;arr.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id));
+  drag.row.classList.remove('dragging');drag=null;save();render();
+};
+document.addEventListener('pointerup',endDrag);document.addEventListener('pointercancel',endDrag);
 function groupTot(g){return g.items.reduce((a,id)=>{const f=S.foods.find(x=>x.id===id);if(f){a.p+=f.p;a.k+=f.k}return a},{p:0,k:0})}
 
 /* ---------- objectif ---------- */
@@ -835,13 +897,11 @@ function otherUpd(){
 }
 
 /* ---------- actions ---------- */
-function pushEntry(name,p,k,meal){
-  const id=Date.now()+Math.random();meal=meal||mealOf(new Date());openMeals.add(meal);
-  (S.log[today()]=S.log[today()]||[]).push({name,p,k,t:id,meal});
-  const cut=dkey(new Date(Date.now()-120*864e5));for(const d in S.log)if(d<cut)delete S.log[d];
+function pushEntry(name,p,k,meal,day){
+  day=day||today();const id=Date.now()+Math.random();meal=meal||mealOf(new Date());if(day===today())openMeals.add(meal);
+  (S.log[day]=S.log[day]||[]).push({name,p,k,t:id,meal});
   save();render();vib();
-  const day=today();
-  toast('+'+Math.round(p)+' g · '+name,()=>{const L=S.log[day];if(!L)return;const i=L.findIndex(e=>e.t===id);if(i>=0){L.splice(i,1);save();render()}});
+  toast('+'+fN(p)+' g · '+name,()=>{const L=S.log[day];if(!L)return;const i=L.findIndex(e=>e.t===id);if(i>=0){L.splice(i,1);save();render();if(VD===day&&$('dlg').open)openDay(day)}});
 }
 function addItem(t,id){
   S.use[id]=(S.use[id]||0)+1;
@@ -926,7 +986,7 @@ function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReade
 
 function dlgOpen(h){const d=$('dlg');d.innerHTML=h;if(!d.open)d.showModal()}
 function dlgClose(){$('dlg').close()}
-$('dlg').addEventListener('close',stopScan);
+$('dlg').addEventListener('close',()=>{stopScan()});
 
 let lastDay=today();
 setInterval(()=>{if(today()!==lastDay){lastDay=today();render()}},60000);

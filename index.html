@@ -102,7 +102,19 @@ details p{font-size:14px;color:var(--mut);line-height:1.55;margin:8px 0}
 /* repas */
 .meal{border-bottom:1px solid var(--line2)}
 .meal:last-child{border-bottom:none}
-.mealH{display:flex;width:100%;align-items:center;gap:10px;background:none;border:none;padding:12px 0;text-align:left}
+.mealH{display:flex;width:100%;align-items:center;gap:8px;padding:6px 0}
+.mhT{flex:1;display:flex;align-items:center;gap:10px;background:none;border:none;padding:6px 0;text-align:left;min-width:0}
+.mealH .qa{width:32px;height:32px;border-radius:50%;border:1px solid rgba(233,194,122,.45);background:rgba(233,194,122,.08);color:var(--gold);font-size:19px;line-height:1;padding:0;flex-shrink:0}
+.meal.empty .mn{opacity:.55}
+input[type=checkbox]{accent-color:#d9ab57;width:20px;height:20px;flex-shrink:0}
+.tgt{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-bottom:1px solid var(--line2);padding:12px 4px;text-align:left}
+.tgt:last-child{border-bottom:none}
+.tgt .tn{flex:1;font-family:var(--serif);font-weight:700;font-size:16px}
+.tgt .tv{white-space:nowrap;color:var(--txt)}
+.tgt.cur{background:rgba(233,194,122,.07);border-radius:12px}
+.tgt .bdg{font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(233,194,122,.18);color:var(--gold2);margin-left:6px;font-family:system-ui,sans-serif;font-weight:600}
+.morebtn{width:100%;margin-top:10px;background:none;border:1px dashed rgba(233,194,122,.4);border-radius:14px;padding:11px;color:var(--gold2);font-size:14px}
+details#planDet{margin-top:14px}
 .mealH .mn{flex:1;font-family:var(--serif);font-weight:700;font-size:17px;color:var(--gold2)}
 .mealH .mt{white-space:nowrap;color:var(--mut);font-size:13px}
 .mealH .chev{color:var(--gold);width:14px;text-align:center;transition:transform .2s}
@@ -131,7 +143,6 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
       <div class="row"><span class="mut">Calories</span><span><span id="kNow" class="num metal">0</span> <span class="mut">/ <span id="kTgt"></span> kcal</span></span></div>
       <div class="bar" style="margin-bottom:0"><div id="kBar"></div></div>
     </div>
-    <div class="grid2" id="quick"></div>
     <div class="acts">
       <button class="act" onclick="openScanner()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M8 8v8M11 8v8M14 8v8M17 8v8"/></svg>Scanner</button>
       <button class="act" onclick="openEstimator()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="13" r="7"/><path d="M12 13l3-2M5 6l2 2M19 6l-2 2"/></svg>Estimer</button>
@@ -140,6 +151,12 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
     <div class="card">
       <h2>Ajouté aujourd'hui</h2>
       <div id="todayList"></div>
+    </div>
+    <div class="card">
+      <h2>Mes aliments</h2>
+      <div id="quickTop"></div>
+      <div class="grid2" id="quick"></div>
+      <div id="quickMore"></div>
     </div>
   </div>
 </section>
@@ -189,15 +206,15 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
   <div class="hero" data-h="foods"></div>
   <div class="pad">
     <div class="card">
-      <h2>Mes aliments</h2>
-      <div class="list" id="foodList"></div>
-      <button class="btn pri" style="width:100%;margin-top:12px" onclick="editFood()">+ Nouvel aliment</button>
+      <h2>Mes groupes</h2>
+      <div class="mut" style="margin-bottom:10px">Un groupe ajoute plusieurs aliments d'un seul tap.</div>
+      <button class="btn pri" style="width:100%;margin-bottom:6px" onclick="editGroup()">+ Nouveau groupe</button>
+      <div class="list" id="groupList"></div>
     </div>
     <div class="card">
-      <h2>Mes groupes</h2>
-      <div class="mut" style="margin-bottom:6px">Un groupe ajoute plusieurs aliments d'un seul tap.</div>
-      <div class="list" id="groupList"></div>
-      <button class="btn pri" style="width:100%;margin-top:12px" onclick="editGroup()">+ Nouveau groupe</button>
+      <h2>Mes aliments</h2>
+      <button class="btn pri" style="width:100%;margin-bottom:6px" onclick="editFood()">+ Nouvel aliment</button>
+      <div class="list" id="foodList"></div>
     </div>
   </div>
 </section>
@@ -206,43 +223,50 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
   <div class="hero" data-h="set"></div>
   <div class="pad">
     <div class="card">
-      <h2>Phase en cours</h2>
+      <h2>Ma phase</h2>
       <div class="seg" id="phaseSeg"></div>
       <label>Début de la phase</label>
       <input type="date" id="phaseStart" onchange="setPhaseStart(this.value)">
       <div class="mut" id="phaseInfo" style="margin-top:8px"></div>
+      <details id="planDet">
+        <summary id="planSum">Programmer la suite</summary>
+        <div class="mut" style="margin:8px 0 6px">Le jour venu, l'appli te propose de basculer d'un tap.</div>
+        <div class="list" id="planList"></div>
+        <div class="grid2" style="margin-top:8px">
+          <div><label>Phase</label><select id="plP"><option value="seche">Sèche</option><option value="entretien">Entretien</option><option value="masse">Prise de masse</option></select></div>
+          <div><label>À partir du</label><input type="date" id="plD"></div>
+        </div>
+        <div id="plErr" style="color:var(--red);font-size:13px;margin-top:6px"></div>
+        <button class="btn pri" style="width:100%;margin-top:10px" onclick="addPlan()">+ Ajouter l'étape</button>
+      </details>
     </div>
 
     <div class="card">
-      <h2>Planning des phases</h2>
-      <div class="mut" style="margin-bottom:6px">Programme tes prochaines étapes. Le jour venu, l'appli te propose de basculer d'un tap.</div>
-      <div class="list" id="planList"></div>
-      <div class="grid2" style="margin-top:8px">
-        <div><label>Phase</label><select id="plP"><option value="seche">Sèche</option><option value="entretien">Entretien</option><option value="masse">Prise de masse</option></select></div>
-        <div><label>À partir du</label><input type="date" id="plD"></div>
+      <h2>Mes cibles</h2>
+      <div id="targets"></div>
+      <div class="chk" style="margin-top:8px"><input type="checkbox" id="autoT" onchange="setAuto(this.checked)"><span>Ajuster mes cibles automatiquement chaque semaine</span></div>
+      <div class="mut" id="autoInfo" style="margin-bottom:6px"></div>
+      <button class="btn pri" style="width:100%;margin-top:8px" onclick="proposeTargets()">Proposer mes cibles</button>
+    </div>
+
+    <div class="card">
+      <h2>Mon profil</h2>
+      <div class="grid2">
+        <div><label>Poids (kg)</label><input id="prW" type="number" readonly style="opacity:.75"></div>
+        <div><label>% de gras</label><input id="prF" type="text" readonly style="opacity:.75"></div>
+        <div><label>Taille (cm)</label><input id="prH" type="number" inputmode="numeric" onchange="setProf('h',this.value)"></div>
+        <div><label>Âge</label><input id="prA" type="number" inputmode="numeric" onchange="setProf('age',this.value)"></div>
+        <div><label>Sexe</label><select id="prS" onchange="setProf('sex',this.value)"><option value="h">Homme</option><option value="f">Femme</option></select></div>
+        <div><label>Activité</label><select id="prAct" onchange="setProf('act',this.value)"></select></div>
       </div>
-      <div id="plErr" style="color:var(--red);font-size:13px;margin-top:6px"></div>
-      <button class="btn pri" style="width:100%;margin-top:10px" onclick="addPlan()">+ Ajouter l'étape</button>
-    </div>
-
-    <div class="card">
-      <h2>Mon entretien</h2>
+      <div class="mut" style="margin-top:6px">Le poids et le % de gras viennent de tes mesures dans Suivi.</div>
+      <h2 style="font-size:17px;margin-top:16px">Mon entretien</h2>
       <div class="calc" id="cLbmRow" style="display:none"><span>Masse sèche</span><b id="cLbm">–</b></div>
       <div class="calc"><span id="cBmrL">Métabolisme de base</span><b id="cBmr">–</b></div>
       <div class="calc"><span id="cActL">+ Activité</span><b id="cAct">–</b></div>
       <div class="calc tot"><span>= Entretien (formule)</span><b id="tdeeF">–</b></div>
       <div class="calc"><span>Entretien selon tes données</span><b id="tdeeR">–</b></div>
       <div class="mut" id="tdeeRinfo" style="text-align:right"></div>
-      <div class="grid2">
-        <div><label>Poids (kg)</label><input id="prW" type="number" readonly style="opacity:.75"></div>
-        <div><label>Taille (cm)</label><input id="prH" type="number" inputmode="numeric" onchange="setProf('h',this.value)"></div>
-        <div><label>Âge</label><input id="prA" type="number" inputmode="numeric" onchange="setProf('age',this.value)"></div>
-        <div><label>Sexe</label><select id="prS" onchange="setProf('sex',this.value)"><option value="h">Homme</option><option value="f">Femme</option></select></div>
-      </div>
-      <label>Niveau d'activité</label>
-      <select id="prAct" onchange="setProf('act',this.value)"></select>
-      <button class="btn pri" style="width:100%;margin-top:14px" onclick="proposeTargets()">Proposer mes cibles</button>
-      <button class="btn" style="width:100%;margin-top:8px" onclick="openOther()">Calculer pour quelqu'un</button>
       <details>
         <summary>Comment ça fonctionne ?</summary>
         <p><b style="color:var(--txt)">Métabolisme de base.</b> C'est l'énergie que ton corps brûle au repos complet : respirer, faire battre le cœur, maintenir la température. Si tu as noté ton % de gras depuis moins de 2 mois, l'appli utilise la formule de Katch-McArdle, basée sur ta masse sèche (ton poids sans la graisse) : c'est la plus précise. Sinon, elle utilise Mifflin-St Jeor, à partir de ton poids, ta taille, ton âge et ton sexe. Ton poids est repris automatiquement de tes pesées.</p>
@@ -255,17 +279,11 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
     </div>
 
     <div class="card">
-      <h2>Cibles par phase</h2>
-      <div class="chk" style="padding-top:0"><input type="checkbox" id="autoT" onchange="setAuto(this.checked)"><span>Ajuster mes cibles automatiquement chaque semaine</span></div>
-      <div class="mut" id="autoInfo" style="margin-bottom:6px"></div>
-      <div id="targets"></div>
-    </div>
-    <div class="card">
-      <h2>Jours de pesée</h2>
+      <h2>Outils</h2>
+      <button class="btn" style="width:100%" onclick="openOther()">Calculer pour quelqu'un</button>
+      <label style="margin-top:16px">Jours de pesée</label>
       <div id="days"></div>
-    </div>
-    <div class="card">
-      <h2>Sauvegarde</h2>
+      <label style="margin-top:16px">Sauvegarde</label>
       <div class="mut" style="margin-bottom:10px">Tes données et tes photos restent sur ton téléphone. Fais une sauvegarde de temps en temps.</div>
       <div class="grid2">
         <button class="btn" onclick="exportData()">Sauvegarder</button>
@@ -306,6 +324,9 @@ const fmtLong=d=>d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',mont
 const num=v=>parseFloat(String(v).replace(',','.'));
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const r50=n=>Math.round(n/50)*50;
+const fN=x=>fr(x,Math.round(x*10)%10?1:0);
+const dot=t=>/\.$/.test(t)?t:t+'.';
+const deP=n=>(/^[aeiouyéèê]/i.test(n)?"d'":'de ')+n;
 const v=id=>$(id).value;
 const err=(id,t)=>{const e=$(id);if(e)e.textContent=t};
 const vib=()=>{try{navigator.vibrate&&navigator.vibrate(15)}catch(e){}};
@@ -331,6 +352,7 @@ function migrate(s){
   if(!s.plan)s.plan=[];
   if(!('goal' in s))s.goal=null;
   if(!s.fat)s.fat=[];
+  if(!s.use)s.use={};
   if(!('auto' in s))s.auto=true;
   return s;
 }
@@ -498,8 +520,7 @@ function render(){
   $('pTgt').textContent=tg.p;$('kTgt').textContent=frInt(tg.k);
   const pb=$('pBar');pb.style.width=Math.min(100,p/tg.p*100)+'%';pb.style.background='linear-gradient(90deg,#9a6a26,#f0cd85 70%,#fff1c9)';
   const kb=$('kBar');kb.style.width=Math.min(100,k/tg.k*100)+'%';kb.style.background=k>tg.k?'var(--red)':'linear-gradient(90deg,#8a4f16,#e3964a 70%,#ffd09a)';
-  const q=[...S.groups.map(g=>({t:'g',id:g.id,name:g.name,...groupTot(g)})),...S.foods.map(f=>({t:'f',...f}))];
-  $('quick').innerHTML=q.map(x=>'<button class="fbtn" onclick="addItem(\''+x.t+'\',\''+x.id+'\')"><span>'+esc(x.name)+'</span><b>+'+Math.round(x.p)+' g</b></button>').join('');
+  renderQuick();
   renderMeals(L);
 
   /* suivi */
@@ -514,17 +535,18 @@ function render(){
   $('histList').innerHTML=H.length?H.map(h=>'<div><span>'+fmtD(h.d)+'</span><span>'+h.v+' <button class="x" onclick="delMeasure(\''+h.t+'\',\''+h.d+'\')">×</button></span></div>').join(''):'<div class="mut">Aucune mesure.</div>';
 
   /* aliments */
-  $('foodList').innerHTML=S.foods.map(f=>'<div><span>'+esc(f.name)+'<br><span class="mut">'+f.p+' g · '+f.k+' kcal</span></span><button class="btn" onclick="editFood(\''+f.id+'\')">Modifier</button></div>').join('')||'<div class="mut">Aucun aliment.</div>';
-  $('groupList').innerHTML=S.groups.map(g=>{const t=groupTot(g);return '<div><span>'+esc(g.name)+'<br><span class="mut">'+Math.round(t.p)+' g · '+frInt(t.k)+' kcal</span></span><button class="btn" onclick="editGroup(\''+g.id+'\')">Modifier</button></div>'}).join('')||'<div class="mut">Aucun groupe.</div>';
+  $('foodList').innerHTML=S.foods.map(f=>'<div><span>'+esc(f.name)+'<br><span class="mut">'+fN(f.p)+' g · '+frInt(f.k)+' kcal</span></span><button class="btn" onclick="editFood(\''+f.id+'\')">Modifier</button></div>').join('')||'<div class="mut">Aucun aliment.</div>';
+  $('groupList').innerHTML=S.groups.map(g=>{const t=groupTot(g);return '<div><span>'+esc(g.name)+'<br><span class="mut">'+fN(t.p)+' g · '+frInt(t.k)+' kcal</span></span><button class="btn" onclick="editGroup(\''+g.id+'\')">Modifier</button></div>'}).join('')||'<div class="mut">Aucun groupe.</div>';
 
   /* réglages */
   $('phaseSeg').innerHTML=Object.keys(PH).map(k=>'<button class="'+(k===ph.p?'on':'')+'" onclick="setPhase(\''+k+'\')">'+PH[k].n+'</button>').join('');
   $('phaseStart').value=ph.start;
-  $('phaseInfo').textContent='Semaine '+(w+1)+' de '+info.n.toLowerCase()+'.';
+  $('phaseInfo').textContent='Semaine '+(w+1)+' '+deP(info.n.toLowerCase())+'.';
+  $('planSum').textContent='Programmer la suite'+(S.plan.length?' ('+S.plan.length+' étape'+(S.plan.length>1?'s':'')+')':'');
   const pl=S.plan.slice().sort((a,b)=>a.start.localeCompare(b.start));
   $('planList').innerHTML=pl.length?pl.map(x=>'<div><span><span style="color:'+PH[x.p].c+';font-family:var(--serif);font-weight:700">'+PH[x.p].n+'</span><br><span class="mut">à partir du '+parseD(x.start).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</span></span><button class="x" onclick="delPlan(\''+x.id+'\')">×</button></div>').join(''):'<div class="mut">Aucune étape programmée.</div>';
   const P=S.profile,cw=curWeight();
-  $('prW').value=cw?cw.toFixed(1):'';$('prH').value=P.h;$('prA').value=P.age;$('prS').value=P.sex;
+  $('prW').value=cw?cw.toFixed(1):'';{const lf=S.fat[S.fat.length-1];$('prF').value=lf?fr(lf.pct)+' %'+(daysBetween(lf.d,today())>60?' (ancien)':''):'non noté'}$('prH').value=P.h;$('prA').value=P.age;$('prS').value=P.sex;
   if(!$('prAct').options.length)$('prAct').innerHTML=ACT.map(a=>'<option value="'+a[0]+'">'+a[1]+'</option>').join('');
   $('prAct').value=String(P.act);
   const F=tdeeFormula(),R=tdeeReal();
@@ -532,13 +554,13 @@ function render(){
   $('cBmrL').textContent='Métabolisme de base'+(F&&F.fat?' (Katch-McArdle)':' (Mifflin-St Jeor)');
   $('cLbmRow').style.display=F&&F.lbm?'':'none';if(F&&F.lbm)$('cLbm').textContent=fr(F.lbm)+' kg ('+fr(F.fat)+' % de gras)';
   $('autoT').checked=!!S.auto;
-  $('autoInfo').textContent=S.auto?(S.autoLast?'Dernier ajustement le '+fmtD(S.autoLast)+'. Une modification à la main sera remplacée au prochain ajustement.':''):'Tes cibles restent fixes. Utilise « Proposer mes cibles » pour les recalculer.';
+  $('autoInfo').textContent=S.auto?(S.autoLast?dot('Dernier ajustement le '+fmtD(S.autoLast))+' Une modification à la main sera remplacée au prochain ajustement.':''):'Tes cibles restent fixes. Utilise « Proposer mes cibles » pour les recalculer.';
   $('cActL').textContent='+ Activité (× '+String(P.act).replace('.',',')+')';
   $('cAct').textContent=F?frInt(F.tdee-F.bmr)+' kcal':'–';
   $('tdeeF').textContent=F?frInt(r50(F.tdee))+' kcal':'–';
   $('tdeeR').textContent=R.ok?frInt(r50(R.tdee))+' kcal':'–';
   $('tdeeRinfo').textContent=R.ok?'sur '+R.days+' jours notés':'Disponible après '+Math.max(0,14-R.days)+' j notés et '+Math.max(0,5-R.ws)+' pesées de plus';
-  $('targets').innerHTML=Object.keys(PH).map(k=>'<div style="margin-bottom:8px"><span style="color:'+PH[k].c+';font-family:var(--serif);font-weight:700;font-size:16px">'+PH[k].n+'</span><div class="grid2"><div><label>Protéines (g)</label><input type="number" inputmode="numeric" value="'+S.targets[k].p+'" onchange="setTgt(\''+k+'\',\'p\',this.value)"></div><div><label>Calories (kcal)</label><input type="number" inputmode="numeric" value="'+S.targets[k].k+'" onchange="setTgt(\''+k+'\',\'k\',this.value)"></div></div></div>').join('');
+  $('targets').innerHTML=Object.keys(PH).map(k=>'<button class="tgt'+(k===ph.p?' cur':'')+'" onclick="editTarget(\''+k+'\')"><span class="tn" style="color:'+PH[k].c+'">'+PH[k].n+(k===ph.p?'<span class="bdg">en cours</span>':'')+'</span><span class="tv">'+S.targets[k].p+' g · '+frInt(S.targets[k].k)+' kcal</span><span style="color:var(--gold)">›</span></button>').join('');
   $('days').innerHTML='<div class="seg">'+[1,2,3,4,5,6,0].map(d=>'<button class="'+(S.days.includes(d)?'on':'')+'" onclick="toggleDay('+d+')">'+DAYN[d]+'</button>').join('')+'</div>';
 }
 const MEALS=[['pdj','Petit déj'],['dej','Déjeuner'],['col','Collation'],['din','Dîner']];
@@ -549,17 +571,46 @@ let G=[];
 function renderMeals(L){
   G=[];let h='';
   MEALS.forEach(([m,label])=>{
-    const es=L.filter(e=>entryMeal(e)===m);if(!es.length)return;
-    const tp=es.reduce((a,e)=>a+e.p,0),tk=es.reduce((a,e)=>a+e.k,0),open=openMeals.has(m);
-    h+='<div class="meal'+(open?' open':'')+'"><button class="mealH" onclick="toggleMeal(\''+m+'\')"><span class="mn">'+label+'</span><span class="mt">'+Math.round(tp)+' g · '+frInt(tk)+' kcal</span><span class="chev">›</span></button>';
+    const es=L.filter(e=>entryMeal(e)===m);
+    const tp=es.reduce((a,e)=>a+e.p,0),tk=es.reduce((a,e)=>a+e.k,0),open=openMeals.has(m)&&es.length>0;
+    h+='<div class="meal'+(open?' open':'')+(es.length?'':' empty')+'"><div class="mealH"><button class="mhT" onclick="toggleMeal(\''+m+'\')"><span class="mn">'+label+'</span><span class="mt">'+(es.length?fN(tp)+' g · '+frInt(tk)+' kcal':'—')+'</span><span class="chev"'+(es.length?'':' style="visibility:hidden"')+'>›</span></button><button class="qa" aria-label="Saisie rapide" onclick="quickAdd(\''+m+'\')">+</button></div>';
     if(open){
       const groups=[];es.forEach(e=>{const key=e.name+'|'+e.p+'|'+e.k;let g=groups.find(x=>x.key===key);if(!g){g={key,meal:m,name:e.name,p:e.p,k:e.k,ts:[]};groups.push(g)}g.ts.push(e.t)});
       groups.forEach(g=>{const i=G.push(g)-1,n=g.ts.length;
-        h+='<div class="it" oncontextmenu="itemMenu('+i+');return false"><span class="nm" onclick="itemMenu('+i+')">'+esc(g.name)+(n>1?' <b>×'+n+'</b>':'')+'</span><span class="rt">'+fr(g.p*n,g.p*n%1?1:0)+' g · '+frInt(g.k*n)+' kcal</span><span class="ctl"><button aria-label="Retirer un" onclick="grpMinus('+i+')">−</button><button aria-label="Ajouter un" onclick="grpPlus('+i+')">+</button></span></div>'});
+        h+='<div class="it" oncontextmenu="itemMenu('+i+');return false"><span class="nm" onclick="itemMenu('+i+')">'+esc(g.name)+(n>1?' <b>×'+n+'</b>':'')+'</span><span class="rt">'+fN(g.p*n)+' g · '+frInt(g.k*n)+' kcal</span><span class="ctl"><button aria-label="Retirer un" onclick="grpMinus('+i+')">−</button><button aria-label="Ajouter un" onclick="grpPlus('+i+')">+</button></span></div>'});
     }
     h+='</div>';
   });
-  $('todayList').innerHTML=h||'<div class="mut">Rien pour l\'instant.</div>';
+  $('todayList').innerHTML=h;
+}
+let quickAll=false,quickQ='';
+const norm=t=>t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function renderQuick(){
+  const q=[...S.groups.map(g=>({t:'g',id:g.id,name:g.name,...groupTot(g)})),...S.foods.map(f=>({t:'f',...f}))]
+    .map((x,i)=>({...x,i,u:S.use[x.id]||0})).sort((a,b)=>b.u-a.u||a.i-b.i);
+  const btn=x=>'<button class="fbtn" onclick="addItem(\''+x.t+'\',\''+x.id+'\')"><span>'+esc(x.name)+'</span><b>+'+fN(x.p)+' g</b></button>';
+  let list=q,more='';
+  const showSearch=quickAll&&q.length>8;
+  if(!quickAll){list=q.slice(0,6);if(q.length>6)more='<button class="morebtn" onclick="quickAll=true;renderQuick()">Tous mes aliments ('+q.length+') ▾</button>'}
+  else{
+    if(showSearch&&quickQ.trim())list=q.filter(x=>norm(x.name).includes(norm(quickQ.trim())));
+    more='<button class="morebtn" onclick="quickAll=false;quickQ=\'\';renderQuick()">Replier ▴</button>';
+  }
+  if(showSearch&&!$('qSearch'))$('quickTop').innerHTML='<input id="qSearch" placeholder="Rechercher un aliment" style="margin-bottom:10px" oninput="quickQ=this.value;renderQuick()">';
+  if(!showSearch)$('quickTop').innerHTML='';
+  $('quick').innerHTML=list.map(btn).join('')||'<div class="mut" style="grid-column:1/-1">Aucun aliment trouvé.</div>';
+  $('quickMore').innerHTML=more;
+}
+function quickAdd(m){
+  const label=MEALS.find(x=>x[0]===m)[1];
+  dlgOpen('<h2>Saisie rapide · '+label+'</h2><div class="mut">Ajouté à ce repas, sans être enregistré dans tes aliments.</div><label>Nom (facultatif)</label><input id="qaN" placeholder="Pâtes poulet"><div class="grid2"><div><label>Protéines (g)</label><input id="qaP" type="number" inputmode="decimal"></div><div><label>Calories</label><input id="qaK" type="number" inputmode="decimal"></div></div><div id="qaErr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
+    '<div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="saveQuick(\''+m+'\')">Ajouter</button></div>');
+}
+function saveQuick(m){
+  const p=num(v('qaP')),k=num(v('qaK'));
+  if(v('qaP')===''&&v('qaK')===''){err('qaErr','Indique au moins les calories ou les protéines');return}
+  if((v('qaP')!==''&&!(p>=0))||(v('qaK')!==''&&!(k>=0))){err('qaErr','Valeur invalide');return}
+  dlgClose();openMeals.add(m);pushEntry(v('qaN').trim()||'Plat',p||0,k||0,m);
 }
 function toggleMeal(m){openMeals.has(m)?openMeals.delete(m):openMeals.add(m);render()}
 function removeByT(t){const L=S.log[today()];if(!L)return;const i=L.findIndex(e=>e.t===t);if(i>=0)L.splice(i,1)}
@@ -793,6 +844,7 @@ function pushEntry(name,p,k,meal){
   toast('+'+Math.round(p)+' g · '+name,()=>{const L=S.log[day];if(!L)return;const i=L.findIndex(e=>e.t===id);if(i>=0){L.splice(i,1);save();render()}});
 }
 function addItem(t,id){
+  S.use[id]=(S.use[id]||0)+1;
   if(t==='f'){const f=S.foods.find(x=>x.id===id);if(f)pushEntry(f.name,f.p,f.k)}
   else{const g=S.groups.find(x=>x.id===id);if(g){const s=groupTot(g);pushEntry(g.name,s.p,s.k)}}
 }
@@ -809,6 +861,12 @@ function addFat(){const pct=num(v('fIn'));if(!(pct>=3&&pct<=60)){toast('% de gra
 function switchPhase(p){if(cur().start===today())cur().p=p;else S.phases.push({p,start:today()})}
 function setPhase(p){if(p===cur().p)return;if(!confirm('Passer en '+PH[p].n.toLowerCase()+' à partir d\'aujourd\'hui ?'))return;switchPhase(p);save();render();toast('Phase : '+PH[p].n)}
 function setPhaseStart(d){if(!d||d>today())return render();const prev=S.phases[S.phases.length-2];if(prev&&d<=prev.start){toast('Date avant la phase précédente');return render()}cur().start=d;save();render()}
+function editTarget(k){
+  dlgOpen('<h2 style="color:'+PH[k].c+'">'+PH[k].n+'</h2><div class="grid2"><div><label>Protéines (g)</label><input id="tgP" type="number" inputmode="numeric" value="'+S.targets[k].p+'"></div><div><label>Calories (kcal)</label><input id="tgK" type="number" inputmode="numeric" value="'+S.targets[k].k+'"></div></div>'+
+   (S.auto?'<div class="mut" style="margin-top:8px">L\'ajustement automatique est activé : cette cible sera recalculée au prochain ajustement.</div>':'')+
+   '<div id="tgErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="saveTarget(\''+k+'\')">Enregistrer</button></div>');
+}
+function saveTarget(k){const p=Math.round(num(v('tgP'))),kc=Math.round(num(v('tgK')));if(!(p>0&&kc>0)){err('tgErr','Valeurs invalides');return}S.targets[k]={p,k:kc};save();dlgClose();render();toast('Cible mise à jour')}
 function setTgt(ph,key,val){const n=Math.round(num(val));if(n>0){S.targets[ph][key]=n;save();render()}}
 function toggleDay(d){S.days=S.days.includes(d)?S.days.filter(x=>x!==d):[...S.days,d];save();render()}
 function setProf(key,val){const P=S.profile;if(key==='sex')P.sex=val;else if(key==='act')P.act=num(val);else{const n=Math.round(num(val));if(!(n>0))return render();P[key]=n}save();render()}
@@ -849,7 +907,7 @@ function delFood(id){if(!confirm('Supprimer cet aliment ?'))return;S.foods=S.foo
 function editGroup(id){
   const g=S.groups.find(x=>x.id===id)||{name:'',items:[]};
   dlgOpen('<h2>'+(id?'Modifier le groupe':'Nouveau groupe')+'</h2><label>Nom</label><input id="gn" value="'+esc(g.name)+'" placeholder="Mon déjeuner"><label>Aliments du groupe</label>'+
-   S.foods.map(f=>'<div class="chk"><input type="checkbox" value="'+f.id+'" '+(g.items.includes(f.id)?'checked':'')+'><span>'+esc(f.name)+' <span class="mut">'+f.p+' g</span></span></div>').join('')+
+   S.foods.map(f=>'<div class="chk"><input type="checkbox" value="'+f.id+'" '+(g.items.includes(f.id)?'checked':'')+'><span>'+esc(f.name)+' <span class="mut">'+fN(f.p)+' g</span></span></div>').join('')+
    '<div id="gerr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px">'+(id?'<button class="btn danger" onclick="delGroup(\''+id+'\')">Supprimer</button>':'<button class="btn" onclick="dlgClose()">Annuler</button>')+'<button class="btn pri" onclick="saveGroup(\''+(id||'')+'\')">Enregistrer</button></div>');
 }
 function saveGroup(id){const name=v('gn').trim(),items=[...document.querySelectorAll('#dlg .chk input:checked')].map(x=>x.value);

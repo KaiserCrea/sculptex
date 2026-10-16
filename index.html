@@ -131,9 +131,15 @@ details#planDet{margin-top:14px}
 .mvg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
 input[type=range]{padding:0;accent-color:var(--gold);background:none;border:none}
 video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:cover}
+#splash{position:fixed;inset:0;z-index:9999;background:#050505;display:flex;align-items:center;justify-content:center;transition:opacity .5s ease}
+#splash img{width:58vw;max-width:320px;height:auto;animation:spIn .7s ease-out both}
+#splash.out{opacity:0;pointer-events:none}
+@keyframes spIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
 </style>
 </head>
 <body>
+<div id="splash"><img src="icon-512-v2.png" alt=""></div>
+<script>setTimeout(function(){var s=document.getElementById('splash');if(!s)return;s.classList.add('out');setTimeout(function(){s.remove()},550)},1100)</script>
 <main id="main">
 
 <section class="tab" id="t-today">
@@ -278,7 +284,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
       <div class="mut" id="tdeeRinfo" style="text-align:right"></div>
       <details>
         <summary>Comment ça fonctionne ?</summary>
-        <p><b style="color:var(--txt)">Métabolisme de base.</b> C'est l'énergie que ton corps brûle au repos complet : respirer, faire battre le cœur, maintenir la température. Si tu as noté ton % de gras depuis moins de 2 mois, l'appli utilise la formule de Katch-McArdle, basée sur ta masse sèche (ton poids sans la graisse) : c'est la plus précise. Sinon, elle utilise Mifflin-St Jeor, à partir de ton poids, ta taille, ton âge et ton sexe. Ton poids est repris automatiquement de tes pesées.</p>
+        <p><b style="color:var(--txt)">Métabolisme de base.</b> C'est l'énergie que ton corps brûle au repos complet : respirer, faire battre le cœur, maintenir la température. L'appli utilise la formule de Mifflin-St Jeor, à partir de ton poids, ta taille, ton âge et ton sexe. Ton % de gras ne change pas ce calcul : il sert à suivre ta composition et à fixer tes protéines. Ton poids est repris automatiquement de tes pesées.</p>
         <p><b style="color:var(--txt)">Entretien selon la formule.</b> On multiplie le métabolisme de base par ton niveau d'activité. C'est une estimation de départ, avec une marge d'environ 10 %.</p>
         <p><b style="color:var(--txt)">Entretien selon tes données.</b> L'appli regarde les 21 derniers jours : la moyenne des calories notées et l'évolution de ton poids. Un kilo de graisse vaut environ 7 700 kcal : si tu perds du poids, tu as mangé sous ton entretien, et l'écart le révèle. Il faut au moins 14 jours notés et 5 pesées ; les jours sous 1 000 kcal sont ignorés car jugés incomplets.</p>
         <p><b style="color:var(--txt)">Proposer mes cibles.</b> À partir de l'entretien (tes données si disponibles, sinon la formule) : sèche = entretien − 500 kcal, prise de masse = entretien + 250 kcal. Protéines : avec ton % de gras, 2,5 g par kilo de masse sèche en sèche et 2,2 g en entretien et prise de masse ; sans, 2,1 g et 1,85 g par kilo de poids.</p>
@@ -319,7 +325,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
 const KEY='sculptex-v1',TABKEY='sculptex-tab';
 const TABS=['today','foods','track','set'];
 const PH={seche:{n:'Sèche',c:'#5fd690'},entretien:{n:'Entretien',c:'#7fb2ff'},masse:{n:'Prise de masse',c:'#f5a04a'}};
-const ACT=[[1.2,'Sédentaire, pas de sport'],[1.375,'Léger : 1 à 3 séances par semaine'],[1.55,'Régulier : 3 à 5 séances par semaine'],[1.725,'Très actif : 6 à 7 séances par semaine'],[1.9,'Extrême : sport + métier physique']];
+const ACT=[[1.2,'Sédentaire'],[1.375,'Léger (1–3/sem)'],[1.55,'Régulier (3–5/sem)'],[1.725,'Intense (6–7/sem)'],[1.9,'Extrême (+ métier)']];
 const DAYN=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const $=id=>document.getElementById(id);
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -470,9 +476,9 @@ function slopeOf(pts){/* pts: [{d,val}] -> unités par jour */
   let n=0,d=0;xs.forEach((x,i)=>{n+=(x-mx)*(ys[i]-my);d+=(x-mx)*(x-mx)});
   return d?n/d:null;
 }
-function bmrOf(w,h,age,sex,fat){return fat>0?370+21.6*w*(1-fat/100):10*w+6.25*h-5*age+(sex==='f'?-161:5)}
+function bmrOf(w,h,age,sex){return 10*w+6.25*h-5*age+(sex==='f'?-161:5)}
 function latestFat(){const f=S.fat[S.fat.length-1];return(f&&daysBetween(f.d,today())<=60)?f.pct:null}
-function tdeeFormula(){const w=curWeight(),P=S.profile;if(!w)return null;const f=latestFat();const bmr=bmrOf(w,P.h,P.age,P.sex,f);return{bmr,tdee:bmr*P.act,fat:f,lbm:f?w*(1-f/100):null}}
+function tdeeFormula(){const w=curWeight(),P=S.profile;if(!w)return null;const f=latestFat();const bmr=bmrOf(w,P.h,P.age,P.sex);return{bmr,tdee:bmr*P.act,fat:f,lbm:f?w*(1-f/100):null}}
 function protTargets(){
   const w=curWeight();if(!w)return null;const f=latestFat(),r5=x=>Math.round(x/5)*5;
   if(f){const L=w*(1-f/100);return{seche:r5(L*2.5),entretien:r5(L*2.2),masse:r5(L*2.2)}}
@@ -564,7 +570,7 @@ function render(){
   $('prAct').value=String(P.act);
   const F=tdeeFormula(),R=tdeeReal();
   $('cBmr').textContent=F?frInt(F.bmr)+' kcal':'–';
-  $('cBmrL').textContent='Métabolisme de base'+(F&&F.fat?' (Katch-McArdle)':' (Mifflin-St Jeor)');
+  $('cBmrL').textContent='Métabolisme de base (Mifflin-St Jeor)';
   $('cLbmRow').style.display=F&&F.lbm?'':'none';if(F&&F.lbm)$('cLbm').textContent=fr(F.lbm)+' kg ('+fr(F.fat)+' % de gras)';
   $('autoT').checked=!!S.auto;
   $('autoInfo').textContent=S.auto?(S.autoLast?dot('Dernier ajustement le '+fmtD(S.autoLast))+' Une modification à la main sera remplacée au prochain ajustement.':''):'Tes cibles restent fixes. Utilise « Proposer mes cibles » pour les recalculer.';
@@ -897,7 +903,7 @@ function otherUpd(){
   const s=v('oS'),a=num(v('oA')),h=num(v('oH')),w=num(v('oW')),x=num(v('oX'));
   if(!(a>10&&h>100&&w>30)){$('oRes').innerHTML='<div class="mut">Remplis l\'âge, la taille et le poids.</div>';return}
   const f=num(v('oF')),hasF=f>=3&&f<=60,L=hasF?w*(1-f/100):null;
-  const b=bmrOf(w,h,a,s,hasF?f:0),t=b*x,pr=Math.round((hasF?L*2.2:w*(s==='f'?1.8:2))/5)*5;
+  const b=bmrOf(w,h,a,s),t=b*x,pr=Math.round((hasF?L*2.2:w*(s==='f'?1.8:2))/5)*5;
   $('oRes').innerHTML=(hasF?'<div class="calc"><span>Masse sèche</span><b>'+fr(L)+' kg</b></div>':'')+'<div class="calc"><span>Métabolisme de base</span><b>'+frInt(b)+' kcal</b></div><div class="calc"><span>+ Activité</span><b>'+frInt(t-b)+' kcal</b></div><div class="calc tot"><span>= Entretien</span><b>'+frInt(r50(t))+' kcal</b></div>'+
    '<div class="calc"><span style="color:'+PH.seche.c+'">Sèche</span><b>'+frInt(r50(t-500))+' kcal</b></div><div class="calc"><span style="color:'+PH.masse.c+'">Prise de masse</span><b>'+frInt(r50(t+250))+' kcal</b></div><div class="calc"><span>Protéines conseillées</span><b>≈ '+pr+' g / jour</b></div>';
 }

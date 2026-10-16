@@ -194,7 +194,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
     </div>
     <div class="card">
       <h2>Photos avant/après</h2>
-      <div class="mut" style="margin-bottom:10px">Une photo par semaine, même lumière, même pose. Elles restent sur ton téléphone.</div>
+      <div class="mut" style="margin-bottom:10px">Une photo par mois, même lumière, même pose. Elles restent sur ton téléphone.</div>
       <div class="grid2" style="margin-bottom:12px">
         <button class="btn pri" onclick="document.getElementById('phIn').click()">+ Ajouter une photo</button>
         <button class="btn" onclick="openCompare()">Comparer</button>
@@ -246,6 +246,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
         </div>
         <div id="plErr" style="color:var(--red);font-size:13px;margin-top:6px"></div>
         <button class="btn pri" style="width:100%;margin-top:10px" onclick="addPlan()">+ Ajouter l'étape</button>
+        <button class="btn" style="width:100%;margin-top:8px" onclick="proposePlan()">Proposer un planning</button>
       </details>
     </div>
 
@@ -293,6 +294,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
       <div id="days"></div>
       <label style="margin-top:16px">Sauvegarde</label>
       <div class="mut" style="margin-bottom:10px">Tes données et tes photos restent sur ton téléphone. Fais une sauvegarde de temps en temps.</div>
+      <div class="mut" id="bkInfo" style="margin-bottom:10px"></div>
       <div class="grid2">
         <button class="btn" onclick="exportData()">Sauvegarder</button>
         <button class="btn" onclick="document.getElementById('imp').click()">Restaurer</button>
@@ -361,6 +363,7 @@ function migrate(s){
   if(!('goal' in s))s.goal=null;
   if(!s.fat)s.fat=[];
   if(!s.use)s.use={};
+  if(!s.backupBase)s.backupBase=today();
   if(!('auto' in s))s.auto=true;
   return s;
 }
@@ -519,6 +522,8 @@ function render(){
   if(S.days.includes(new Date().getDay())&&!S.weights.some(x=>x.d===today()))al.push(['info','Jour de pesée aujourd\'hui. Le matin, à jeun.']);
   const lastC=S.waist[S.waist.length-1];
   if(!lastC||daysBetween(lastC.d,today())>=7)al.push(['info','Pense à mesurer ton tour de taille cette semaine.']);
+  const lb=S.lastBackup||S.backupBase;
+  if(daysBetween(lb,today())>=60)al.push(['warn',(S.lastBackup?'Dernière sauvegarde il y a '+daysBetween(lb,today())+' jours.':'Tu n\'as encore jamais sauvegardé tes données.')+' Elles sont seulement sur ton téléphone.<br><button class="btn pri" onclick="exportData()">Sauvegarder maintenant</button>']);
   $('alerts').innerHTML=al.map(a=>'<div class="alert '+a[0]+'">'+a[1]+'</div>').join('');
 
   /* compteur */
@@ -569,6 +574,7 @@ function render(){
   $('tdeeR').textContent=R.ok?frInt(r50(R.tdee))+' kcal':'–';
   $('tdeeRinfo').textContent=R.ok?'sur '+R.days+' jours notés':'Disponible après '+Math.max(0,14-R.days)+' j notés et '+Math.max(0,5-R.ws)+' pesées de plus';
   $('targets').innerHTML=Object.keys(PH).map(k=>'<button class="tgt'+(k===ph.p?' cur':'')+'" onclick="editTarget(\''+k+'\')"><span class="tn" style="color:'+PH[k].c+'">'+PH[k].n+(k===ph.p?'<span class="bdg">en cours</span>':'')+'</span><span class="tv">'+S.targets[k].p+' g · '+frInt(S.targets[k].k)+' kcal</span><span style="color:var(--gold)">›</span></button>').join('');
+  $('bkInfo').textContent=S.lastBackup?'Dernière sauvegarde : '+parseD(S.lastBackup).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'.':'Aucune sauvegarde pour l\'instant.';
   $('days').innerHTML='<div class="seg">'+[1,2,3,4,5,6,0].map(d=>'<button class="'+(S.days.includes(d)?'on':'')+'" onclick="toggleDay('+d+')">'+DAYN[d]+'</button>').join('')+'</div>';
 }
 const MEALS=[['pdj','Petit déj'],['dej','Déjeuner'],['col','Collation'],['din','Dîner']];
@@ -943,6 +949,37 @@ function applyPlan(){
   switchPhase(due.p);S.plan=S.plan.filter(x=>x.start>today());save();render();toast('Phase : '+PH[due.p].n);
 }
 let planSnooze=false;
+/* ---------- planning proposé (calé sur les saisons) ----------
+   Repères annuels : sèche au 1er mars (≈16 semaines), entretien au 21 juin (sec l'été),
+   prise de masse au 1er septembre (≈5 mois), entretien au 1er février (pause avant la sèche). */
+let PP=[];
+function proposePlan(){
+  const t=today(),y0=+t.slice(0,4),anchors=[];
+  for(let y=y0;y<=y0+2;y++)[['02-01','entretien'],['03-01','seche'],['06-21','entretien'],['09-01','masse']].forEach(([md,p])=>anchors.push({start:y+'-'+md,p}));
+  let last=cur().p,lastStart=cur().start;const out=[];
+  for(const a of anchors.filter(a=>a.start>t)){
+    if(out.length>=4)break;
+    if(a.p===last)continue;
+    if(last==='seche'){const cap=dkey(new Date(parseD(lastStart).getTime()+16*7*864e5));if(cap>t&&cap<a.start){out.push({start:cap,p:'entretien'});last='entretien';lastStart=cap;if(out.length>=4||a.p===last)continue}}
+    out.push({start:a.start,p:a.p});last=a.p;lastStart=a.start;
+  }
+  PP=out;showPP();
+}
+function showPP(){
+  const durs={seche:'16 semaines max',entretien:'pause, poids stable',masse:'4 à 6 mois'};
+  dlgOpen('<h2>Planning proposé</h2><div class="mut">Calé sur les saisons : sec l\'été, prise de masse l\'automne. Modifie une date ou retire une étape, puis valide.</div>'+
+    '<div class="list" style="margin-top:8px">'+PP.map((x,i)=>'<div><span style="flex:1;min-width:0"><span style="color:'+PH[x.p].c+';font-family:var(--serif);font-weight:700">'+PH[x.p].n+'</span><br><span class="mut" style="font-size:12px">'+durs[x.p]+'</span></span><input type="date" value="'+x.start+'" min="'+dkey(new Date(parseD(today()).getTime()+864e5))+'" style="width:auto;max-width:150px;padding:8px" onchange="PP['+i+'].start=this.value"><button class="x" onclick="PP.splice('+i+',1);showPP()">×</button></div>').join('')+'</div>'+
+    (S.plan.some(x=>x.start>today())?'<div class="mut" style="margin-top:8px">Les étapes déjà programmées seront remplacées.</div>':'')+
+    '<div id="ppErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="savePP()">Valider</button></div>');
+}
+function savePP(){
+  const L=PP.filter(x=>x.start).sort((a,b)=>a.start.localeCompare(b.start));
+  if(!L.length){err('ppErr','Aucune étape à enregistrer');return}
+  if(L.some(x=>x.start<=today())){err('ppErr','Les dates doivent être à venir');return}
+  if(new Set(L.map(x=>x.start)).size!==L.length){err('ppErr','Deux étapes ont la même date');return}
+  S.plan=S.plan.filter(x=>x.start<=today()).concat(L.map(x=>({id:uid(),p:x.p,start:x.start})));
+  save();dlgClose();render();$('planDet').open=true;toast('Planning enregistré');
+}
 function skipPlan(){planSnooze=true;render();toast('Je te le reproposerai à la prochaine ouverture')}
 function proposeTargets(){
   const C=computeTargets();
@@ -978,13 +1015,13 @@ function delGroup(id){if(!confirm('Supprimer ce groupe ?'))return;S.groups=S.gro
 async function exportData(){
   let ph=[];try{ph=await DB.all()||[]}catch(e){}
   const b=new Blob([JSON.stringify({...S,photos:ph})],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='sculptex-sauvegarde-'+today()+'.json';a.click();toast('Sauvegarde téléchargée')}
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='sculptex-sauvegarde-'+today()+'.json';a.click();S.lastBackup=today();save();render();toast('Sauvegarde téléchargée')}
 function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=async()=>{try{const d=JSON.parse(r.result);if(!d.foods||!d.weights||!d.phases)throw 0;if(!confirm('Remplacer les données actuelles par cette sauvegarde ?'))return;
   const ph=d.photos||null;delete d.photos;S=migrate(d);save();
   if(ph){await DB.clear();for(const p of ph)await DB.put(p);await loadPhotos()}
   render();toast('Données restaurées')}catch(e){toast('Fichier non valide')}};r.readAsText(f);inp.value=''}
 
-function dlgOpen(h){const d=$('dlg');d.innerHTML=h;if(!d.open)d.showModal()}
+function dlgOpen(h){const d=$('dlg');d.innerHTML=h;if(!d.open)d.showModal();const f=document.activeElement;if(f&&f.type==='date')f.blur()}
 function dlgClose(){$('dlg').close()}
 $('dlg').addEventListener('close',()=>{stopScan()});
 

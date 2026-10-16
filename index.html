@@ -80,6 +80,11 @@ dialog{background:#141311;color:var(--txt);border:1px solid rgba(233,194,122,.4)
 dialog::backdrop{background:rgba(0,0,0,.7)}
 .chk{display:flex;align-items:center;gap:10px;padding:7px 0}
 .chk input{width:auto}
+.chk>span:first-of-type{flex:1;min-width:0}
+.gq{display:none;align-items:center;gap:8px;flex-shrink:0}
+.chk.on .gq{display:flex}
+.gq button{width:30px;height:30px;border-radius:50%;border:1px solid rgba(233,194,122,.4);background:none;color:var(--gold);font-size:17px;line-height:1;padding:0}
+.gq b{min-width:18px;text-align:center;color:var(--gold2)}
 details{margin-top:12px;border-top:1px solid var(--line2);padding-top:10px}
 summary{color:var(--gold);font-size:14px;cursor:pointer}
 details p{font-size:14px;color:var(--mut);line-height:1.55;margin:8px 0}
@@ -692,7 +697,8 @@ const endDrag=()=>{
   drag.row.classList.remove('dragging');drag=null;save();render();
 };
 document.addEventListener('pointerup',endDrag);document.addEventListener('pointercancel',endDrag);
-function groupTot(g){return g.items.reduce((a,id)=>{const f=S.foods.find(x=>x.id===id);if(f){a.p+=f.p;a.k+=f.k}return a},{p:0,k:0})}
+function gQty(g,id){return(g.q&&g.q[id])||1}
+function groupTot(g){return g.items.reduce((a,id)=>{const f=S.foods.find(x=>x.id===id),n=gQty(g,id);if(f){a.p+=f.p*n;a.k+=f.k*n}return a},{p:0,k:0})}
 
 /* ---------- objectif ---------- */
 function projection(series,target){
@@ -1004,12 +1010,13 @@ function delFood(id){if(!confirm('Supprimer cet aliment ?'))return;S.foods=S.foo
 function editGroup(id){
   const g=S.groups.find(x=>x.id===id)||{name:'',items:[]};
   dlgOpen('<h2>'+(id?'Modifier le groupe':'Nouveau groupe')+'</h2><label>Nom</label><input id="gn" value="'+esc(g.name)+'" placeholder="Mon déjeuner"><label>Aliments du groupe</label>'+
-   S.foods.map(f=>'<div class="chk"><input type="checkbox" value="'+f.id+'" '+(g.items.includes(f.id)?'checked':'')+'><span>'+esc(f.name)+' <span class="mut">'+fN(f.p)+' g</span></span></div>').join('')+
+   S.foods.map(f=>{const on=g.items.includes(f.id),n=on?gQty(g,f.id):1;return '<div class="chk'+(on?' on':'')+'"><input type="checkbox" value="'+f.id+'" '+(on?'checked':'')+' onchange="this.parentNode.classList.toggle(\'on\',this.checked)"><span>'+esc(f.name)+' <span class="mut">'+fN(f.p)+' g</span></span><span class="gq"><button type="button" onclick="gStep(this,-1)">−</button><b>'+n+'</b><button type="button" onclick="gStep(this,1)">+</button></span></div>'}).join('')+
    '<div id="gerr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px">'+(id?'<button class="btn danger" onclick="delGroup(\''+id+'\')">Supprimer</button>':'<button class="btn" onclick="dlgClose()">Annuler</button>')+'<button class="btn pri" onclick="saveGroup(\''+(id||'')+'\')">Enregistrer</button></div>');
 }
-function saveGroup(id){const name=v('gn').trim(),items=[...document.querySelectorAll('#dlg .chk input:checked')].map(x=>x.value);
+function gStep(b,d){const e=b.parentNode.querySelector('b');e.textContent=Math.max(1,Math.min(20,(+e.textContent||1)+d))}
+function saveGroup(id){const name=v('gn').trim(),ch=[...document.querySelectorAll('#dlg .chk input:checked')],items=ch.map(x=>x.value),q={};ch.forEach(x=>{const n=+x.parentNode.querySelector('.gq b').textContent||1;if(n>1)q[x.value]=n});
   if(!name){err('gerr','Donne un nom');return}if(!items.length){err('gerr','Choisis au moins un aliment');return}
-  if(id)Object.assign(S.groups.find(x=>x.id===id),{name,items});else S.groups.push({id:uid(),name,items});save();dlgClose();render()}
+  if(id)Object.assign(S.groups.find(x=>x.id===id),{name,items,q});else S.groups.push({id:uid(),name,items,q});save();dlgClose();render()}
 function delGroup(id){if(!confirm('Supprimer ce groupe ?'))return;S.groups=S.groups.filter(x=>x.id!==id);save();dlgClose();render()}
 
 async function exportData(){

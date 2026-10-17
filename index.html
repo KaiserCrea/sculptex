@@ -827,10 +827,12 @@ function cmpUpd(){
 /* ---------- scanner ---------- */
 let scStream=null,scTimer=null,scFood=null;
 function stopScan(){clearInterval(scTimer);scTimer=null;if(scStream){scStream.getTracks().forEach(t=>t.stop());scStream=null}}
-async function openScanner(){
+let scMode='meal';
+async function openScanner(mode){
+  scMode=mode==='food'?'food':'meal';
   dlgOpen('<h2>Scanner</h2><div id="scWrap"><video id="scV" playsinline muted></video></div><div class="mut" id="scMsg" style="margin:8px 0">Vise le code-barres de l\'emballage.</div>'+
    '<label>Ou tape le code</label><div class="row"><input id="scCode" inputmode="numeric" placeholder="3017620422003"><button class="btn pri" onclick="lookup(v(\'scCode\'))">Chercher</button></div>'+
-   '<button class="btn" style="width:100%;margin-top:14px" onclick="dlgClose()">Fermer</button>');
+   '<button class="btn" style="width:100%;margin-top:14px" onclick="stopScan();scMode===\'food\'?editFood():dlgClose()">'+(scMode==='food'?'Retour':'Fermer')+'</button>');
   if(!('BarcodeDetector' in window)||!navigator.mediaDevices){$('scWrap').style.display='none';$('scMsg').textContent='Le scan automatique n\'est pas disponible ici : tape le code sous le code-barres.';return}
   try{
     const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']});
@@ -845,7 +847,7 @@ async function lookup(code){
   stopScan();
   dlgOpen('<h2>Recherche…</h2><div class="mut">Code '+code+'</div>');
   try{
-    const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,product_name_fr,brands,nutriments,serving_quantity');
+    const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,product_name_fr,brands,nutriments,serving_quantity,serving_quantity_unit');
     const j=await r.json();
     if(!j||j.status!==1||!j.product)throw 'nf';
     const pr=j.product,n=pr.nutriments||{};
@@ -854,6 +856,7 @@ async function lookup(code){
     const full=(pr.product_name_fr||pr.product_name||'Produit')+(pr.brands?' ('+pr.brands.split(',')[0]+')':'');
     scFood={full,name:shortName(pr.product_name_fr||pr.product_name),p100:isNaN(p100)?0:p100,k100:isNaN(k100)?0:k100};
     const q=+pr.serving_quantity>0?Math.round(+pr.serving_quantity):100;
+    if(scMode==='food'){const u=String(pr.serving_quantity_unit||'').toLowerCase()==='ml'?'ml':'g';editFood(null,{name:scFood.name,p100:scFood.p100,k100:scFood.k100,q:+pr.serving_quantity>0?q:'',u});return}
     dlgOpen('<h2>'+esc(scFood.name)+'</h2><div class="mut" style="margin-bottom:4px">'+esc(scFood.full)+'</div><div class="mut">Pour 100 g : '+fr(scFood.p100)+' g de protéines · '+frInt(scFood.k100)+' kcal</div>'+
       '<label>Quantité mangée (g)</label><input id="scQ" type="number" inputmode="decimal" value="'+q+'" oninput="scUpd()">'+
       '<div class="calc tot" style="margin-top:12px"><span>Total</span><b id="scTot"></b></div>'+
@@ -861,7 +864,7 @@ async function lookup(code){
       '<div class="row" style="margin-top:12px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="scAdd()">Ajouter</button></div>');
     scUpd();
   }catch(e){
-    dlgOpen('<h2>Produit introuvable</h2><div class="mut">Ce code n\'est pas dans Open Food Facts'+(navigator.onLine?'':' (pas de connexion internet)')+'. Tu peux saisir l\'aliment à la main.</div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Fermer</button><button class="btn pri" onclick="addFree()">Saisir à la main</button></div>');
+    dlgOpen('<h2>Produit introuvable</h2><div class="mut">Ce code n\'est pas dans Open Food Facts'+(navigator.onLine?'':' (pas de connexion internet)')+'. Tu peux saisir l\'aliment à la main.</div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Fermer</button><button class="btn pri" onclick="scMode===\'food\'?editFood():addFree()">Saisir à la main</button></div>');
   }
 }
 function shortName(raw){
@@ -1038,10 +1041,11 @@ function proposeTargets(){
 }
 function applyTargets(){if(!window._N)return;S.targets=window._N;S.autoLast=today();save();dlgClose();render();toast('Cibles mises à jour')}
 
-function editFood(id){
+function editFood(id,pre){
   const f=S.foods.find(x=>x.id===id)||{name:'',p:'',k:''};
-  dlgOpen('<h2>'+(id?'Modifier':'Nouvel aliment')+'</h2><label>Nom</label><input id="fn" value="'+esc(f.name)+'" placeholder="3 œufs"><div class="chk" style="margin-top:10px"><input type="checkbox" id="f100" onchange="f100Upd()"><span>Valeurs pour 100 g / 100 ml (étiquette)</span></div><div class="grid2"><div><label id="fpL">Protéines (g)</label><input id="fp" type="number" inputmode="decimal" value="'+f.p+'" oninput="f100Upd()"></div><div><label id="fkL">Calories</label><input id="fk" type="number" inputmode="decimal" value="'+f.k+'" oninput="f100Upd()"></div></div><div id="f100Box" style="display:none"><div class="grid2"><div><label>Ma quantité</label><input id="fq" type="number" inputmode="decimal" placeholder="200" oninput="f100Upd()"></div><div><label>Unité</label><select id="fu" onchange="f100Upd()"><option value="g">g</option><option value="ml">ml</option></select></div></div><div class="calc" style="margin-top:10px"><span>Pour ta portion</span><b id="f100Res">–</b></div></div><div id="ferr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
+  dlgOpen('<h2>'+(id?'Modifier':'Nouvel aliment')+'</h2>'+(id?'':'<button class="btn" style="width:100%;margin-bottom:4px" onclick="openScanner(\'food\')">'+(pre?'Scanner un autre produit':'Scanner un code-barres')+'</button>')+'<label>Nom</label><input id="fn" value="'+esc(f.name)+'" placeholder="3 œufs"><div class="chk" style="margin-top:10px"><input type="checkbox" id="f100" onchange="f100Upd()"><span>Valeurs pour 100 g / 100 ml (étiquette)</span></div><div class="grid2"><div><label id="fpL">Protéines (g)</label><input id="fp" type="number" inputmode="decimal" value="'+f.p+'" oninput="f100Upd()"></div><div><label id="fkL">Calories</label><input id="fk" type="number" inputmode="decimal" value="'+f.k+'" oninput="f100Upd()"></div></div><div id="f100Box" style="display:none"><div class="grid2"><div><label>Ma quantité</label><input id="fq" type="number" inputmode="decimal" placeholder="200" oninput="f100Upd()"></div><div><label>Unité</label><select id="fu" onchange="f100Upd()"><option value="g">g</option><option value="ml">ml</option></select></div></div><div class="calc" style="margin-top:10px"><span>Pour ta portion</span><b id="f100Res">–</b></div></div><div id="ferr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
    '<div class="row" style="margin-top:14px">'+(id?'<button class="btn danger" onclick="delFood(\''+id+'\')">Supprimer</button>':'<button class="btn" onclick="dlgClose()">Annuler</button>')+'<button class="btn pri" onclick="saveFood(\''+(id||'')+'\')">Enregistrer</button></div>');
+  if(pre){$('fn').value=pre.name||'';$('f100').checked=true;$('fp').value=pre.p100;$('fk').value=Math.round(pre.k100);$('fq').value=pre.q;$('fu').value=pre.u||'g';f100Upd();if(!pre.q)$('fq').focus()}
 }
 function f100Calc(){const q=num(v('fq')),p=num(v('fp')),k=num(v('fk'))||0;if(!(q>0)||!(p>=0))return null;return{q,u:v('fu'),p:Math.round(p*q/10)/10,k:Math.round(k*q/100)}}
 function f100Upd(){const on=$('f100').checked;$('f100Box').style.display=on?'':'none';$('fpL').textContent=on?'Protéines pour 100':'Protéines (g)';$('fkL').textContent=on?'Calories pour 100':'Calories';

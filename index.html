@@ -471,9 +471,11 @@ function avgBetween(fromDaysAgo,toDaysAgo){
   return x.length?x.reduce((a,b)=>a+b,0)/x.length:null;
 }
 function curWeight(){const a=avgBetween(7,0);if(a!=null)return a;const l=S.weights[S.weights.length-1];return l?l.kg:null}
-function trend(){const a=avgBetween(7,0),b=avgBetween(14,7);return(a==null||b==null)?null:(a-b)/b*100}
+function nWeights(f,t){const now=parseD(today());return S.weights.filter(w=>{const a=(now-parseD(w.d))/864e5;return a>=t&&a<f}).length}
+function trendWhy(){const first=S.weights.length?[...S.weights].sort((a,b)=>a.d.localeCompare(b.d))[0].d:null;if(!first||daysBetween(first,today())<7)return'après 2 semaines';if(nWeights(7,0)<2||nWeights(14,7)<2)return'pas assez de pesées';return null}
+function trend(){if(trendWhy())return null;const a=avgBetween(7,0),b=avgBetween(14,7);return(a==null||b==null)?null:(a-b)/b*100}
 function trendMsg(t){
-  if(t==null)return{txt:'après 2 semaines',c:'var(--mut)'};
+  if(t==null)return{txt:trendWhy()||'après 2 semaines',c:'var(--mut)'};
   const p=cur().p;
   if(p==='seche'){if(t<=-1.2)return{txt:'un peu rapide',c:'var(--orange)'};if(t<=-0.4)return{txt:'bon rythme',c:'var(--green)'};return{txt:'trop lent',c:'var(--orange)'}}
   if(p==='masse'){if(t>0.25)return{txt:'trop rapide',c:'var(--orange)'};if(t>=0.03)return{txt:'bon rythme',c:'var(--green)'};return{txt:'pas de prise',c:'var(--orange)'}}
@@ -677,22 +679,46 @@ function moveGrp(m){const g=grp(window._gi);if(!g)return;(S.log[g.day]||[]).forE
 function delGrp(){const g=grp(window._gi);if(!g)return;g.ts.forEach(t=>removeByT(t,g.day));if(g.day===today())dlgClose();afterDayEdit(g.day)}
 
 /* ---------- mes journées ---------- */
-let daysShown=14;
+let weeksShown=4;const openWeeks=new Set();
+function toggleWeek(m){openWeeks.has(m)?openWeeks.delete(m):openWeeks.add(m);renderDays()}
 function dayTot(d){const L=S.log[d]||[];return{p:L.reduce((a,e)=>a+e.p,0),k:L.reduce((a,e)=>a+e.k,0),n:L.length}}
 function dayStatus(d,t){const tg=S.targets[phaseAt(d)];if(t.k>tg.k*1.3)return'var(--orange)';const okP=t.p>=tg.p*0.9,okK=t.k<=tg.k*1.1&&t.k>=tg.k*0.8;return okP&&okK?'var(--green)':(okP||okK)?'var(--gold)':'var(--orange)'}
 function renderDays(){
   const now=parseD(today()),past=[];
   for(let i=1;i<=7;i++){const d=dkey(new Date(now-i*864e5)),t=dayTot(d);if(t.n)past.push(t)}
   const avg=past.length?{p:past.reduce((a,t)=>a+t.p,0)/past.length,k:past.reduce((a,t)=>a+t.k,0)/past.length}:null;
-  const keys=Object.keys(S.log).filter(d=>d<=today()&&(S.log[d]||[]).length).sort().reverse();
   let h='<div class="stats" style="padding:4px 0 10px"><div><span class="num metal">'+(avg?fN(avg.p):'–')+'</span><span class="mut">g · moyenne 7 j</span></div><div><span class="num metal">'+(avg?frInt(avg.k):'–')+'</span><span class="mut">kcal · moyenne 7 j</span></div><div><span class="num metal">'+past.length+'/7</span><span class="mut">jours notés</span></div></div>';
-  h+='<div class="mut" style="margin-bottom:4px">Moyenne des 7 derniers jours, sans aujourd\'hui. Appuie sur un jour pour voir le détail ou le corriger.</div>';
-  h+=keys.length?'<div class="list">'+keys.slice(0,daysShown).map(d=>{const t=dayTot(d),c=dayStatus(d,t);
-    const lbl=d===today()?'Aujourd\'hui':parseD(d).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
-    return '<div onclick="openDay(\''+d+'\')" style="cursor:pointer"><span><span style="color:'+c+'">●</span> '+lbl.replace(/^./,x=>x.toUpperCase())+'</span><span class="mut" style="white-space:nowrap">'+fN(t.p)+' g · '+frInt(t.k)+' kcal ›</span></div>'}).join('')+'</div>':'<div class="mut">Aucune journée notée pour l\'instant.</div>';
-  if(keys.length>daysShown)h+='<button class="morebtn" onclick="daysShown+=14;renderDays()">Voir plus</button>';
+  const firstD=[...Object.keys(S.log).filter(d=>(S.log[d]||[]).length),...S.weights.map(w=>w.d)].sort()[0]||today();
+  const lblD=d=>(d===today()?'Aujourd\'hui':parseD(d).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})).replace(/^./,x=>x.toUpperCase());
+  const row=d=>{const t=dayTot(d);if(!t.n)return '<div onclick="openDay(\''+d+'\')" style="cursor:pointer"><span><span style="color:#5d574c">●</span> <span class="mut">'+lblD(d)+'</span></span><span class="mut" style="white-space:nowrap">non noté ›</span></div>';
+    return '<div onclick="openDay(\''+d+'\')" style="cursor:pointer"><span><span style="color:'+dayStatus(d,t)+'">●</span> '+lblD(d)+'</span><span class="mut" style="white-space:nowrap">'+fN(t.p)+' g · '+frInt(t.k)+' kcal ›</span></div>'};
+  const recent=[];for(let i=0;i<=7;i++){const d=dkey(new Date(now-i*864e5));if(d>=firstD||dayTot(d).n)recent.push(d)}
+  h+='<div class="mut" style="margin-bottom:4px">Moyenne des 7 derniers jours, sans aujourd\'hui. Appuie sur un jour pour voir le détail, le compléter ou le corriger.</div>';
+  h+='<div class="list">'+recent.map(row).join('')+'</div>';
+  const limit=dkey(new Date(now-8*864e5));
+  const old=Object.keys(S.log).filter(d=>d<=limit&&(S.log[d]||[]).length);S.weights.forEach(w=>{if(w.d<=limit&&!old.includes(w.d))old.push(w.d)});
+  if(old.length){
+    const monday=d=>{const x=parseD(d),k=(x.getDay()+6)%7;return dkey(new Date(x.getFullYear(),x.getMonth(),x.getDate()-k))};
+    const sun=m=>{const x=parseD(m);return dkey(new Date(x.getFullYear(),x.getMonth(),x.getDate()+6))};
+    const WK={};old.forEach(d=>{const m=monday(d);(WK[m]=WK[m]||[]).push(d)});
+    const mons=Object.keys(WK).sort().reverse();
+    const wAvg=m=>{const e=sun(m),x=S.weights.filter(w=>w.d>=m&&w.d<=e).map(w=>w.kg);return x.length?x.reduce((a,b)=>a+b,0)/x.length:null};
+    h+='<label style="margin-top:16px">Semaines précédentes</label><div class="list">';
+    mons.slice(0,weeksShown).forEach((m,i)=>{
+      const ds=[];for(let x=parseD(m),k=0;k<7;k++){const d=dkey(new Date(x.getFullYear(),x.getMonth(),x.getDate()+k));if(d<=limit&&d>=firstD)ds.push(d)}
+      const noted=ds.filter(d=>dayTot(d).n),tot=noted.map(dayTot);
+      const ap=tot.length?tot.reduce((a,t)=>a+t.p,0)/tot.length:null,ak=tot.length?tot.reduce((a,t)=>a+t.k,0)/tot.length:null;
+      const wa=wAvg(m),prev=mons[i+1]?wAvg(mons[i+1]):null;let wd='';
+      if(wa!=null&&prev!=null){const dd=Math.round((wa-prev)*10)/10;wd=' · <span style="color:var(--gold2)">'+(dd>0?'+':dd<0?'−':'±')+fr(Math.abs(dd))+' kg</span>'}
+      else if(wa!=null)wd=' · '+fr(wa)+' kg';
+      const open=openWeeks.has(m),lab='Semaine du '+parseD(m).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+      h+='<div onclick="toggleWeek(\''+m+'\')" style="cursor:pointer;align-items:flex-start"><span style="font-family:var(--serif);font-weight:700;color:var(--gold2)">'+lab+'<br><span class="mut" style="font-family:inherit;font-weight:400;font-size:13px">'+noted.length+'/'+ds.length+' j notés'+wd+'</span></span><span class="mut" style="white-space:nowrap;text-align:right">'+(ap!=null?fN(ap)+' g · '+frInt(ak)+' kcal':'aucun repas')+' '+(open?'▴':'▾')+'</span></div>';
+      if(open)h+='<div style="display:block;padding:0 0 0 12px;border-left:1px solid rgba(233,194,122,.25);margin-left:4px"><div class="list">'+ds.reverse().map(row).join('')+'</div></div>';
+    });
+    h+='</div>';
+    if(mons.length>weeksShown)h+='<button class="morebtn" onclick="weeksShown+=8;renderDays()">Voir plus de semaines</button>';
+  }
   h+='<div class="mut" style="margin-top:8px"><span style="color:var(--green)">●</span> cibles atteintes &nbsp; <span style="color:var(--gold)">●</span> à moitié &nbsp; <span style="color:var(--orange)">●</span> loin des cibles</div>';
-  h+='<button class="btn" style="width:100%;margin-top:12px" onclick="pickDay()">Corriger un autre jour…</button>';
   $('daysList').innerHTML=h;
 }
 function pickDay(){
@@ -780,15 +806,16 @@ function setRange(r){RANGE=r;document.querySelectorAll('[data-r]').forEach(x=>x.
 function phaseAt(d){let p=S.phases[0].p;for(const x of S.phases)if(x.start<=d)p=x.p;return p}
 function drawChart(){
   const el=$('chart');
-  const now=parseD(today()),from=new Date(now-RANGE*864e5);
+  const now=parseD(today()),first=S.weights.length?parseD([...S.weights].sort((a,b)=>a.d.localeCompare(b.d))[0].d):now;
+  const from=new Date(Math.max(now-RANGE*864e5,Math.min(first,now-864e5))),SPAN=Math.max(1,Math.round((now-from)/864e5));
   const pts=S.weights.filter(w=>parseD(w.d)>=from).sort((a,b)=>a.d.localeCompare(b.d));
   if(pts.length<2){el.innerHTML='<div class="mut" style="padding:24px 0;text-align:center">La courbe apparaîtra après 2 pesées.</div>';return}
   const W=340,H=170,P=30,B=H-16;
   const vs=pts.map(p=>p.kg);if(S.goal&&S.goal.kg)vs.push(S.goal.kg);
   const mn=Math.min(...vs)-0.5,mx=Math.max(...vs)+0.5;
   const x=d=>P+(parseD(d)-from)/(now-from)*(W-P-8),y=val=>10+(mx-val)/(mx-mn)*(B-24);
-  let bands='';const step=Math.max(1,Math.round(RANGE/90));
-  for(let i=0;i<=RANGE;i+=step){const d=dkey(new Date(from.getTime()+i*864e5));bands+='<rect x="'+x(d)+'" y="'+(B-4)+'" width="'+((W-P-8)/RANGE*step+0.6)+'" height="4" fill="'+PH[phaseAt(d)].c+'"/>'}
+  let bands='';const step=Math.max(1,Math.round(SPAN/90));
+  for(let i=0;i<SPAN;i+=step){const d=dkey(new Date(from.getTime()+i*864e5));bands+='<rect x="'+x(d)+'" y="'+(B-4)+'" width="'+Math.min((W-P-8)/SPAN*step+0.6,W-x(d))+'" height="4" fill="'+PH[phaseAt(d)].c+'"/>'}
   const line=pts.map(p=>x(p.d)+','+y(p.kg)).join(' ');
   const area='M'+x(pts[0].d)+','+(B-6)+' L'+line.replace(/ /g,' L')+' L'+x(pts[pts.length-1].d)+','+(B-6)+' Z';
   const ticks=[mx-0.5,(mx+mn)/2,mn+0.5].map(val=>'<text x="0" y="'+(y(val)+4)+'" fill="#aaa294" font-size="10">'+fr(val)+'</text><line x1="'+P+'" x2="'+W+'" y1="'+y(val)+'" y2="'+y(val)+'" stroke="#2a2825" stroke-width="0.6"/>').join('');

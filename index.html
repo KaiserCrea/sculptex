@@ -54,14 +54,24 @@ h2{font-family:var(--serif);font-size:21px;margin:2px 0 12px;font-weight:700;col
 .btn{background:#1d1c1a;border:1px solid var(--line2);border-radius:12px;padding:11px 14px}
 .btn.pri{background:linear-gradient(180deg,#fbe2a6,#d4a24f 60%,#b98a3c);color:#1b1407;border:none;font-weight:700;box-shadow:0 2px 10px rgba(233,194,122,.18)}
 .btn.danger{color:var(--red)}
-input,select{font:inherit;color:var(--txt);background:#1a1917;border:1px solid var(--line2);border-radius:12px;padding:11px;width:100%}
+input,select,textarea{font:inherit;color:var(--txt);background:#1a1917;border:1px solid var(--line2);border-radius:12px;padding:11px;width:100%}
+textarea{resize:vertical;min-height:90px;line-height:1.4}
+.rc{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line2)}
+.rc:last-child{border-bottom:none}
+.rc .rn{flex:1;min-width:0;cursor:pointer}
+.rc .rn b{display:block;font-family:var(--serif);font-size:17px;color:var(--gold2)}
+.rc .rn span{font-size:13px;color:var(--mut)}
+.rc .qa{width:38px;height:38px;border-radius:50%;border:1px solid rgba(233,194,122,.45);background:rgba(233,194,122,.08);color:var(--gold);font-size:22px;line-height:1;padding:0;flex-shrink:0}
+.rfi ul,.rfi ol{margin:6px 0 0;padding-left:20px;line-height:1.5}
+.rfi li{margin:3px 0}
+.rtag{font-size:11px;color:var(--gold);border:1px solid rgba(233,194,122,.4);border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 input:focus,select:focus{outline:none;border-color:var(--gold)}
 label{display:block;font-size:13px;color:var(--mut);margin:10px 0 5px}
 .seg{display:flex;gap:4px;padding:4px;border-radius:16px;background:linear-gradient(#0f0e0d,#0f0e0d) padding-box,var(--edge) border-box;border:1px solid transparent}
 .seg button{flex:1;padding:9px 4px;border-radius:12px;border:none;background:none;font-size:14px;color:var(--mut)}
 .seg button.on{background:linear-gradient(180deg,#fbe2a6,#d9ab57);color:#1b1407;font-weight:700}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(10,10,10,.96);border-top:1px solid rgba(233,194,122,.18);padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:5}
-nav button{flex:1;background:none;border:none;color:var(--mut);font-size:12px;padding:6px 0;border-radius:12px}
+nav button{flex:1;min-width:0;background:none;border:none;color:var(--mut);font-size:11px;padding:6px 0;border-radius:12px;white-space:nowrap}
 nav button svg{display:block;margin:0 auto 3px;width:24px;height:24px}
 nav button.on{color:var(--gold);background:radial-gradient(ellipse at 50% 0%,rgba(233,194,122,.18),transparent 70%)}
 .tab{display:none}.tab.on{display:block;animation:slide .22s ease}
@@ -175,6 +185,19 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
       <div id="quickTop"></div>
       <div class="grid2" id="quick"></div>
       <div id="quickMore"></div>
+    </div>
+  </div>
+</section>
+
+<section class="tab" id="t-recipes">
+  <div class="hero" data-h="recipes"></div>
+  <div class="pad">
+    <div class="card">
+      <h2>Mes recettes</h2>
+      <div class="mut" style="margin-bottom:10px">Touche une recette pour voir sa fiche, ou + pour l'ajouter à ta journée.</div>
+      <div class="grid2" style="margin-bottom:8px"><button class="btn pri" onclick="editRecipe()">+ Nouvelle</button><button class="btn" onclick="pasteRecipe()">Coller une recette</button></div>
+      <div id="recTop"></div>
+      <div id="recList"></div>
     </div>
   </div>
 </section>
@@ -327,6 +350,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
 <nav id="nav">
   <button data-t="today" onclick="go('today')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Aujourd'hui</button>
   <button data-t="foods" onclick="go('foods')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8a3 3 0 0 0 3 3v7"/><path d="M10 3v6M4 3v6a3 3 0 0 0 3 3"/><path d="M17 3c-2 2-2 6 0 8v10"/></svg>Aliments</button>
+  <button data-t="recipes" onclick="go('recipes')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v2a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7z"/><path d="M2 11h20"/><path d="M9 7c0-1.5 1-2 1-3.5M13 7c0-1.5 1-2 1-3.5"/></svg>Recettes</button>
   <button data-t="track" onclick="go('track')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Suivi</button>
   <button data-t="set" onclick="go('set')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Réglages</button>
 </nav>
@@ -336,7 +360,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
 
 <script>
 const KEY='sculptex-v1',TABKEY='sculptex-tab';
-const TABS=['today','foods','track','set'];
+const TABS=['today','foods','recipes','track','set'];
 const PH={seche:{n:'Sèche',c:'#5fd690'},entretien:{n:'Entretien',c:'#7fb2ff'},masse:{n:'Prise de masse',c:'#f5a04a'}};
 const ACT=[[1.2,'Sédentaire'],[1.375,'1 à 3 séances'],[1.55,'3 à 5 séances'],[1.725,'6 à 7 séances'],[1.9,'Métier physique']];
 const DAYN=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
@@ -376,9 +400,24 @@ function defaults(){
     targets:{seche:{p:185,k:2200},entretien:{p:185,k:2600},masse:{p:185,k:2850}},
     days:[1,3,5]};
 }
+const START_RECIPES=[
+ {name:'Pommes de terre en robe des champs + fromage blanc aux herbes',mode:'portion',p:26,k:350,
+  ing:['300 g de pommes de terre','250 g de fromage blanc 0 %','Ciboulette ou persil','Ail en poudre','Sel, poivre'],
+  steps:['Laver les pommes de terre, garder la peau, piquer à la fourchette','Micro-ondes 8-10 min en plat couvert (retourner à mi-cuisson), ou 20-25 min à l\'eau bouillante','Mélanger fromage blanc, herbes, ail, sel, poivre']},
+ {name:'Tortilla pommes de terre-œufs',mode:'portion',p:31,k:565,
+  ing:['300 g de pommes de terre','4 œufs','1 c. à café d\'huile','Sel, poivre'],
+  steps:['Couper les pommes de terre en dés, cuire 6-8 min au micro-ondes en plat couvert','Les dorer dans la poêle avec l\'huile','Battre les œufs avec sel et poivre, verser sur les pommes de terre','Feu doux, couvert, 8-10 min ; retourner avec une assiette, 2-3 min']},
+ {name:'Pâtes sauce tomate maison',mode:'100g',p:4.3,k:128,total:1475,
+  ing:['500 g de pâtes sèches','400 g de pulpe de tomates','~50 g de concentré de tomates','1 cube de bouillon'],
+  steps:['Cuire les pâtes, égoutter','Chauffer pulpe, concentré et cube émietté, mélanger aux pâtes']},
+ {name:'Riz basmati au bouillon',mode:'100g',p:3,k:130,
+  ing:['1 volume de riz','1,5 volume d\'eau','1 cube de bouillon de volaille','Persil','Citron'],
+  steps:['Porter l\'eau et le cube à ébullition, ajouter le riz','Couvrir, feu doux, 11-12 min, sans égoutter','Persil et filet de citron en fin de cuisson']}
+];
 function migrate(s){
   if(!s.profile)s.profile={sex:'h',h:185,age:39,act:1.55};
   if(!s.hours)s.hours={pdj:12,dej:15,col:18.5};
+  if(!s.recipes)s.recipes=START_RECIPES.map(r=>({...r,id:uid()}));
   if(!s.plan)s.plan=[];
   if(!('goal' in s))s.goal=null;
   if(!s.fat)s.fat=[];
@@ -407,6 +446,7 @@ const HERO={
   today:{t:"Aujourd'hui",hx:.8,hy:.16},
   track:{t:'Suivi',hx:.22,hy:.18,s:'Poids, silhouette et tendance'},
   foods:{t:'Aliments',hx:.85,hy:.4,s:'Tes aliments et tes repas'},
+  recipes:{t:'Recettes',hx:.3,hy:.3,s:'Tes plats, prêts à ajouter'},
   set:{t:'Réglages',hx:.55,hy:.08,s:'Phases, cibles et calculs'}
 };
 function heroSVG(k){
@@ -528,10 +568,11 @@ function tdeeReal(){
 
 /* ---------- rendu ---------- */
 function render(){
+  if($('recList'))renderRecipes();
   const ph=cur(),info=PH[ph.p],tg=S.targets[ph.p],w=weeksIn();
   const nextPlan=S.plan.filter(x=>x.start>today()).sort((a,b)=>a.start.localeCompare(b.start))[0];
   document.querySelectorAll('[data-lbl]').forEach(e=>{e.textContent=info.n+' · semaine '+(w+1);e.style.color=info.c});
-  const subs={today:fmtLong(new Date()).replace(/^./,c=>c.toUpperCase())+(()=>{if(!nextPlan)return'';const n=daysBetween(today(),nextPlan.start);return n>=1&&n<=14?' · '+PH[nextPlan.p].n+(n===1?' demain':' dans '+n+' jours'):''})(),track:HERO.track.s,foods:HERO.foods.s,set:HERO.set.s};
+  const subs={today:fmtLong(new Date()).replace(/^./,c=>c.toUpperCase())+(()=>{if(!nextPlan)return'';const n=daysBetween(today(),nextPlan.start);return n>=1&&n<=14?' · '+PH[nextPlan.p].n+(n===1?' demain':' dans '+n+' jours'):''})(),recipes:HERO.recipes.s,track:HERO.track.s,foods:HERO.foods.s,set:HERO.set.s};
   document.querySelectorAll('.hero').forEach(h=>{const s=h.querySelector('[data-sub]');if(s)s.textContent=subs[h.dataset.h]});
 
   /* alertes */
@@ -650,8 +691,87 @@ function pastAdd(m,day,keep){
     '<button class="btn" style="width:100%;margin-top:14px" onclick="CTX=null;'+(day===today()?'dlgClose()':'openDay(\''+day+'\')')+'">'+(day===today()?'Fermer':'Retour')+'</button>');
   paList();
 }
-function paList(){const q=quickItems().filter(x=>!paQ.trim()||norm(x.name).includes(norm(paQ.trim())));
-  $('paL').innerHTML=q.map(x=>'<button class="fbtn" onclick="addItem(\''+x.t+'\',\''+x.id+'\')"><span>'+esc(x.name)+'</span><b>+'+fN(x.p)+' g</b></button>').join('')||'<div class="mut" style="grid-column:1/-1">Aucun aliment trouvé.</div>'}
+function paList(){const q=[...(S.recipes||[]).map(r=>({t:'r',id:r.id,name:r.name,p:r.p,k:r.k,mode:r.mode})),...quickItems()].filter(x=>!paQ.trim()||norm(x.name).includes(norm(paQ.trim())));
+  $('paL').innerHTML=q.map(x=>x.t==='r'?'<button class="fbtn" onclick="recAdd(\''+x.id+'\')"><span>'+esc(x.name)+'<span class="rtag">recette</span></span><b>'+(x.mode==='100g'?fN(x.p)+' g/100':'+'+fN(x.p)+' g')+'</b></button>':'<button class="fbtn" onclick="addItem(\''+x.t+'\',\''+x.id+'\')"><span>'+esc(x.name)+'</span><b>+'+fN(x.p)+' g</b></button>').join('')||'<div class="mut" style="grid-column:1/-1">Aucun aliment trouvé.</div>'}
+/* ---------- recettes ---------- */
+let recQ='';
+const recMac=r=>frInt(r.k)+' kcal · '+fN(r.p)+' g de protéines '+(r.mode==='100g'?'pour 100 g':'la portion');
+function renderRecipes(){
+  const R=S.recipes||[];
+  if(R.length>6&&!$('recS'))$('recTop').innerHTML='<input id="recS" placeholder="Rechercher une recette" style="margin:4px 0 6px" oninput="recQ=this.value;renderRecipes()">';
+  if(R.length<=6)$('recTop').innerHTML='';
+  const L=R.filter(r=>!recQ.trim()||norm(r.name).includes(norm(recQ.trim())));
+  $('recList').innerHTML=L.map(r=>'<div class="rc"><div class="rn" onclick="openRecipe(\''+r.id+'\')"><b>'+esc(r.name)+'</b><span>'+recMac(r)+'</span></div><button class="qa" aria-label="Ajouter" onclick="recAdd(\''+r.id+'\')">+</button></div>').join('')||'<div class="mut">'+(R.length?'Aucune recette trouvée.':'Aucune recette pour l\'instant.')+'</div>';
+}
+function openRecipe(id){const r=(S.recipes||[]).find(x=>x.id===id);if(!r)return;
+  dlgOpen('<div class="rfi"><h2>'+esc(r.name)+'</h2><div class="calc"><span>'+(r.mode==='100g'?'Pour 100 g':'La portion')+'</span><b>'+frInt(r.k)+' kcal · '+fN(r.p)+' g P</b></div>'+(r.total?'<div class="mut">Environ '+frInt(r.total)+' g au total</div>':'')+
+   (r.ing&&r.ing.length?'<label>Ingrédients</label><ul>'+r.ing.map(i=>'<li>'+esc(i)+'</li>').join('')+'</ul>':'')+
+   (r.steps&&r.steps.length?'<label>Préparation</label><ol>'+r.steps.map(i=>'<li>'+esc(i)+'</li>').join('')+'</ol>':'')+
+   '<button class="btn pri" style="width:100%;margin-top:16px" onclick="recAdd(\''+r.id+'\')">Ajouter à ma journée</button><div class="row" style="margin-top:10px"><button class="btn" onclick="editRecipe(\''+r.id+'\')">Modifier</button><button class="btn" onclick="dlgClose()">Fermer</button></div></div>');
+}
+let RA=null;
+function recAdd(id){const r=(S.recipes||[]).find(x=>x.id===id);if(!r)return;
+  const back=CTX?{...CTX}:null;RA={id,m:back?back.m:mealOf(new Date()),d:back?back.d:today(),q:r.mode==='100g'?'':1,back};
+  recAddUI();
+}
+function recAddUI(){const r=S.recipes.find(x=>x.id===RA.id);const fix=!!RA.back;
+  dlgOpen('<h2>'+esc(r.name)+'</h2><div class="mut">'+recMac(r)+(RA.d!==today()?' · ajouté au '+fmtLong(parseD(RA.d)):'')+'</div>'+
+   (fix?'':'<label>Repas</label><div class="mvg">'+MEALS.map(([m,l])=>'<button class="btn'+(m===RA.m?' pri':'')+'" onclick="RA.m=\''+m+'\';recAddUI()">'+l+'</button>').join('')+'</div>')+
+   (r.mode==='100g'?'<label>Quantité mangée (g)</label><input id="raQ" type="number" inputmode="decimal" placeholder="250" value="'+RA.q+'" oninput="RA.q=this.value;recTot()">':
+    '<label>Portions</label><div class="step" style="border:none"><span class="mut">Nombre de portions</span><div class="ctl"><button onclick="RA.q=Math.max(.5,RA.q-.5);recAddUI()">−</button><span class="v">'+fN(RA.q)+'</span><button onclick="RA.q=Math.min(10,RA.q+.5);recAddUI()">+</button></div></div>')+
+   '<div class="calc tot" style="margin-top:12px"><span>Total</span><b id="raT">–</b></div>'+
+   '<div class="row" style="margin-top:14px"><button class="btn" onclick="'+(fix?'pastAdd(\''+RA.back.m+'\',\''+RA.back.d+'\',true)':'dlgClose()')+'">Annuler</button><button class="btn pri" onclick="recSave()">Ajouter</button></div>');
+  recTot();if(r.mode==='100g'&&!RA.q)setTimeout(()=>{const e=$('raQ');if(e)e.focus()},50);
+}
+function recCalc(){const r=S.recipes.find(x=>x.id===RA.id),q=num(RA.q);if(!(q>0))return null;const f=r.mode==='100g'?q/100:q;
+  return{p:Math.round(r.p*f*10)/10,k:Math.round(r.k*f),name:r.name+(r.mode==='100g'?' · '+fr(q,q%1?1:0)+' g':(q!==1?' · '+fN(q)+' portions':''))}}
+function recTot(){const c=recCalc(),e=$('raT');if(e)e.textContent=c?fN(c.p)+' g · '+frInt(c.k)+' kcal':'–'}
+function recSave(){const c=recCalc();if(!c){toast('Indique une quantité');return}const A=RA;RA=null;
+  if(A.back){pushEntry(c.name,c.p,c.k,A.back.m,A.back.d);pastAdd(A.back.m,A.back.d,true);return}
+  dlgClose();pushEntry(c.name,c.p,c.k,A.m,A.d)}
+function linesOf(t){return String(t||'').split(/\n/).map(x=>x.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,'').trim()).filter(Boolean)}
+function editRecipe(id,pre){const r=pre||(S.recipes||[]).find(x=>x.id===id)||{name:'',mode:'portion',p:'',k:'',ing:[],steps:[]};
+  dlgOpen('<h2>'+(id?'Modifier la recette':pre?'Vérifier la recette':'Nouvelle recette')+'</h2><label>Nom</label><input id="reN" value="'+esc(r.name)+'" placeholder="Tortilla pommes de terre-œufs">'+
+   '<label>Valeurs</label><select id="reM" onchange="$(\'reTB\').style.display=this.value===\'100g\'?\'\':\'none\'"><option value="portion"'+(r.mode!=='100g'?' selected':'')+'>Pour une portion</option><option value="100g"'+(r.mode==='100g'?' selected':'')+'>Pour 100 g</option></select>'+
+   '<div class="grid2"><div><label>Protéines (g)</label><input id="reP" type="number" inputmode="decimal" value="'+(r.p??'')+'"></div><div><label>Calories</label><input id="reK" type="number" inputmode="decimal" value="'+(r.k??'')+'"></div></div>'+
+   '<div id="reTB" style="'+(r.mode==='100g'?'':'display:none')+'"><label>Poids total cuit (g, facultatif)</label><input id="reT" type="number" inputmode="decimal" value="'+(r.total||'')+'"></div>'+
+   '<label>Ingrédients (un par ligne)</label><textarea id="reI">'+esc((r.ing||[]).join('\n'))+'</textarea>'+
+   '<label>Étapes (une par ligne)</label><textarea id="reS">'+esc((r.steps||[]).join('\n'))+'</textarea>'+
+   '<div id="reErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px">'+(id?'<button class="btn danger" onclick="delRecipe(\''+id+'\')">Supprimer</button>':'<button class="btn" onclick="dlgClose()">Annuler</button>')+'<button class="btn pri" onclick="saveRecipe(\''+(id||'')+'\')">Enregistrer</button></div>');
+}
+function saveRecipe(id){const name=v('reN').trim(),mode=v('reM');let p=num(v('reP')),k=num(v('reK'));const total=num(v('reT'));
+  if(!name){err('reErr','Donne un nom');return}if(!(p>=0)||!(k>0)){err('reErr','Indique les protéines et les calories');return}
+  [p,k]=checkSwap(p,k);
+  const r={name,mode,p,k,total:mode==='100g'&&total>0?total:undefined,ing:linesOf(v('reI')),steps:linesOf(v('reS'))};
+  S.recipes=S.recipes||[];
+  if(id)Object.assign(S.recipes.find(x=>x.id===id),r);else S.recipes.push({id:uid(),...r});
+  save();dlgClose();render();toast(id?'Recette modifiée':'Recette enregistrée');
+  if(PASTEQ.length){setTimeout(()=>editRecipe(null,PASTEQ.shift()),300)}}
+function delRecipe(id){if(!confirm('Supprimer cette recette ?'))return;S.recipes=S.recipes.filter(x=>x.id!==id);save();dlgClose();render()}
+/* coller une recette */
+let PASTEQ=[];
+function pasteRecipe(){dlgOpen('<h2>Coller une recette</h2><div class="mut">Colle ici le texte de la recette (format « RECETTE : … »). Tu pourras vérifier la fiche avant de l\'enregistrer. Plusieurs recettes à la suite fonctionnent aussi.</div><textarea id="paT" style="min-height:220px;margin-top:10px" placeholder="RECETTE : Tortilla pommes de terre-œufs&#10;MACROS : 565 kcal / 31 g P par portion&#10;INGRÉDIENTS :&#10;- 300 g de pommes de terre&#10;ÉTAPES :&#10;1. …"></textarea><div id="paErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="pasteGo()">Lire la recette</button></div>')}
+function parseRecipes(txt){
+  const N=t=>t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const blocks=String(txt||'').replace(/\r/g,'').split(/^\s*(?:\*\*)?\s*recette\s*(?:\*\*)?\s*:/im).slice(1);
+  return blocks.map(b=>{
+    const lines=b.split('\n');const name=lines.shift().replace(/\*\*/g,'').trim();
+    const r={name,mode:'portion',p:null,k:null,ing:[],steps:[]};let sec=null;
+    lines.forEach(L=>{const l=L.replace(/\*\*/g,'').trim();if(!l)return;const n=N(l);
+      if(/^macros?\s*:/.test(n)){const k=/([\d.,]+)\s*kcal/.exec(n),p=/([\d.,]+)\s*g\s*(?:de\s*)?(?:p\b|prot)/.exec(n),t=/total[^\d]*([\d\s.,]+)\s*g/.exec(n);
+        if(k)r.k=num(k[1]);if(p)r.p=num(p[1]);if(/100\s*g/.test(n))r.mode='100g';if(t)r.total=num(t[1].replace(/\s/g,''));sec=null;return}
+      if(/^ingredients?\s*:?$/.test(n)||/^ingredients?\s*:/.test(n)){sec='ing';const rest=l.split(':').slice(1).join(':').trim();if(rest)r.ing.push(...rest.split(/,\s*/));return}
+      if(/^(etapes?|preparation)\s*:?/.test(n)){sec='steps';return}
+      if(sec==='ing')r.ing.push(l.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,''));else if(sec==='steps')r.steps.push(l.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,''));
+    });
+    return r}).filter(r=>r.name);
+}
+function pasteGo(){const R=parseRecipes(v('paT'));
+  if(!R.length){err('paErr','Je ne trouve pas de recette : le texte doit commencer par « RECETTE : nom ».');return}
+  const bad=R.find(r=>!(r.k>0)||r.p==null);
+  PASTEQ=R.slice(1);editRecipe(null,R[0]);if(bad)setTimeout(()=>err('reErr','Vérifie les macros : je ne les ai pas toutes trouvées.'),50);
+  if(R.length>1)toast(R.length+' recettes trouvées : vérifie-les une par une');
+}
 function quickAdd(m,day){
   day=day||today();const label=MEALS.find(x=>x[0]===m)[1];
   dlgOpen('<h2>Saisie rapide · '+label+'</h2><div class="mut">'+(day===today()?'Ajouté à ce repas':'Ajouté au '+fmtLong(parseD(day)))+', sans être enregistré dans tes aliments.</div><label>Nom (facultatif)</label><input id="qaN" placeholder="Pâtes poulet"><div class="grid2"><div><label>Protéines (g)</label><input id="qaP" type="number" inputmode="decimal"></div><div><label>Calories</label><input id="qaK" type="number" inputmode="decimal"></div></div><div id="qaErr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+

@@ -308,6 +308,9 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
     <div class="card">
       <h2>Outils</h2>
       <button class="btn" style="width:100%" onclick="openOther()">Calculer pour quelqu'un</button>
+      <label style="margin-top:16px">Horaires des repas</label>
+      <div class="mut" style="margin-bottom:6px">Ce que tu ajoutes depuis les boutons du haut ou « Mes aliments » va dans le repas de l'heure.</div>
+      <div id="hoursSet"></div>
       <label style="margin-top:16px">Sauvegarde</label>
       <div class="mut" style="margin-bottom:10px">Tes données et tes photos restent sur ton téléphone. Fais une sauvegarde de temps en temps.</div>
       <div class="mut" id="bkInfo" style="margin-bottom:10px"></div>
@@ -375,6 +378,7 @@ function defaults(){
 }
 function migrate(s){
   if(!s.profile)s.profile={sex:'h',h:185,age:39,act:1.55};
+  if(!s.hours)s.hours={pdj:12,dej:15,col:18.5};
   if(!s.plan)s.plan=[];
   if(!('goal' in s))s.goal=null;
   if(!s.fat)s.fat=[];
@@ -592,11 +596,13 @@ function render(){
   $('tdeeRinfo').textContent=R.ok?'sur '+R.days+' jours notés':'Disponible après '+Math.max(0,14-R.days)+' j notés et '+Math.max(0,5-R.ws)+' pesées de plus';
   $('targets').innerHTML=Object.keys(PH).map(k=>'<button class="tgt'+(k===ph.p?' cur':'')+'" onclick="editTarget(\''+k+'\')"><span class="tn" style="color:'+PH[k].c+'">'+PH[k].n+(k===ph.p?'<span class="bdg">en cours</span>':'')+'</span><span class="tv">'+S.targets[k].p+' g · '+frInt(S.targets[k].k)+' kcal</span><span style="color:var(--gold)">›</span></button>').join('');
   $('bkInfo').textContent=S.lastBackup?'Dernière sauvegarde : '+parseD(S.lastBackup).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'.':'Aucune sauvegarde pour l\'instant.';
+  if($('hoursSet'))renderHours();
   $('days').innerHTML='<div class="seg">'+[1,2,3,4,5,6,0].map(d=>'<button class="'+(S.days.includes(d)?'on':'')+'" onclick="toggleDay('+d+')">'+DAYN[d]+'</button>').join('')+'</div>';
 }
 const MEALS=[['pdj','Petit déj'],['dej','Déjeuner'],['col','Collation'],['din','Dîner']];
-function mealOf(d){const h=d.getHours()+d.getMinutes()/60;return h<11?'pdj':h<15?'dej':h<18.5?'col':'din'}
-function entryMeal(e){return e.meal||(e.t>1e12?mealOf(new Date(Math.floor(e.t))):'pdj')}
+function mealOf(d){const h=d.getHours()+d.getMinutes()/60,H=(typeof S!=='undefined'&&S&&S.hours)||{pdj:12,dej:15,col:18.5};return h<H.pdj?'pdj':h<H.dej?'dej':h<H.col?'col':'din'}
+function oldMealOf(d){const h=d.getHours()+d.getMinutes()/60;return h<11?'pdj':h<15?'dej':h<18.5?'col':'din'}
+function entryMeal(e){return e.meal||(e.t>1e12?oldMealOf(new Date(Math.floor(e.t))):'pdj')}
 const openMeals=new Set([mealOf(new Date())]);
 let G=[],GD=[];
 const grp=k=>{k=String(k);return k[0]==='d'?GD[+k.slice(1)]:G[+k.slice(1)]};
@@ -606,7 +612,7 @@ function mealsHTML(L,day,allOpen){
   MEALS.forEach(([m,label])=>{
     const es=L.filter(e=>entryMeal(e)===m);
     const tp=es.reduce((a,e)=>a+e.p,0),tk=es.reduce((a,e)=>a+e.k,0),open=(allOpen||openMeals.has(m))&&es.length>0;
-    h+='<div class="meal'+(open?' open':'')+(es.length?'':' empty')+'"><div class="mealH"><button class="mhT" onclick="'+(allOpen?'':'toggleMeal(\''+m+'\')')+'"><span class="mn">'+label+'</span><span class="mt">'+(es.length?fN(tp)+' g · '+frInt(tk)+' kcal':'—')+'</span><span class="chev"'+(es.length&&!allOpen?'':' style="visibility:hidden"')+'>›</span></button><button class="qa" aria-label="Saisie rapide" onclick="'+(day===today()?'quickAdd':'pastAdd')+'(\''+m+'\',\''+day+'\')">+</button></div>';
+    h+='<div class="meal'+(open?' open':'')+(es.length?'':' empty')+'"><div class="mealH"><button class="mhT" onclick="'+(allOpen?'':'toggleMeal(\''+m+'\')')+'"><span class="mn">'+label+'</span><span class="mt">'+(es.length?fN(tp)+' g · '+frInt(tk)+' kcal':'—')+'</span><span class="chev"'+(es.length&&!allOpen?'':' style="visibility:hidden"')+'>›</span></button><button class="qa" aria-label="Saisie rapide" onclick="pastAdd(\''+m+'\',\''+day+'\')">+</button></div>';
     if(open){
       const groups=[];es.forEach(e=>{const key=e.name+'|'+e.p+'|'+e.k;let g=groups.find(x=>x.key===key);if(!g){g={key,day,meal:m,name:e.name,p:e.p,k:e.k,ts:[]};groups.push(g)}g.ts.push(e.t)});
       groups.forEach(g=>{const A=allOpen?GD:G,i="'"+(allOpen?'d':'t')+(A.push(g)-1)+"'",n=g.ts.length;
@@ -638,10 +644,10 @@ function renderQuick(){
 let CTX=null,paQ='';
 function pastAdd(m,day,keep){
   CTX={m,d:day};if(!keep)paQ='';const label=MEALS.find(x=>x[0]===m)[1];
-  dlgOpen('<h2>'+label+'</h2><div class="mut" style="margin-bottom:10px">Ajouté au '+fmtLong(parseD(day))+'.</div>'+
+  dlgOpen('<h2>'+label+'</h2><div class="mut" style="margin-bottom:10px">'+(day===today()?'Ajouté à ce repas, quelle que soit l\'heure.':'Ajouté au '+fmtLong(parseD(day))+'.')+'</div>'+
     '<div class="acts" style="margin-top:0"><button class="act" onclick="openScanner()">Scanner</button><button class="act" onclick="openEstimator()">Estimer</button><button class="act" onclick="CTX=null;quickAdd(\''+m+'\',\''+day+'\')">Saisie rapide</button></div>'+
     '<input id="paS" placeholder="Rechercher dans mes aliments" value="'+esc(paQ)+'" oninput="paQ=this.value;paList()"><div class="grid2" id="paL" style="margin-top:10px"></div>'+
-    '<button class="btn" style="width:100%;margin-top:14px" onclick="CTX=null;openDay(\''+day+'\')">Retour</button>');
+    '<button class="btn" style="width:100%;margin-top:14px" onclick="CTX=null;'+(day===today()?'dlgClose()':'openDay(\''+day+'\')')+'">'+(day===today()?'Fermer':'Retour')+'</button>');
   paList();
 }
 function paList(){const q=quickItems().filter(x=>!paQ.trim()||norm(x.name).includes(norm(paQ.trim())));
@@ -922,7 +928,7 @@ function scAdd(){
   const g=num(v('scQ'));if(!(g>0)){toast('Indique une quantité');return}
   const p=Math.round(scFood.p100*g/10)/10,k=Math.round(scFood.k100*g/100),name=scFood.name+' · '+g+' g';
   if($('scSave').checked){S.foods.push({id:uid(),name,p,k});save()}
-  const back=CTX;dlgClose();pushEntry(name,p,k);if(back){CTX=null;openDay(back.d)}
+  const back=CTX;dlgClose();pushEntry(name,p,k);if(back){CTX=null;if(back.d!==today())openDay(back.d)}
 }
 
 /* ---------- estimateur d'assiette ---------- */
@@ -945,7 +951,7 @@ function openEstimator(){
 function estAdj(k,d){estQ[k]=Math.max(0,Math.min(6,(estQ[k]||0)+d));estUpd()}
 function estCalc(){let p=0,c=0;EST.forEach(e=>{p+=e.p*estQ[e.k];c+=e.c*estQ[e.k]});const cu=CUIS[+v('esC')]||CUIS[0];return{p:Math.round(p+cu[1]),k:Math.round(c+cu[2])}}
 function estUpd(){EST.forEach(e=>$('es_'+e.k).textContent=String(estQ[e.k]).replace('.',','));const r=estCalc();$('esTot').textContent=r.p+' g · '+frInt(r.k)+' kcal'}
-function estAdd(){const r=estCalc();if(!r.k){toast('Assiette vide');return}const back=CTX;dlgClose();pushEntry('Assiette estimée',r.p,r.k);if(back){CTX=null;openDay(back.d)}}
+function estAdd(){const r=estCalc();if(!r.k){toast('Assiette vide');return}const back=CTX;dlgClose();pushEntry('Assiette estimée',r.p,r.k);if(back){CTX=null;if(back.d!==today())openDay(back.d)}}
 
 /* ---------- calcul pour quelqu'un ---------- */
 function openOther(){
@@ -985,7 +991,7 @@ function addFree(){
   dlgOpen('<h2>Autre aliment</h2><label>Nom</label><input id="fn" placeholder="Steak haché"><div class="grid2"><div><label>Protéines (g)</label><input id="fp" type="number" inputmode="decimal"></div><div><label>Calories</label><input id="fk" type="number" inputmode="decimal"></div></div><div id="ferr" style="color:var(--red);font-size:13px;margin-top:6px"></div>'+
     '<div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="saveFree()">Ajouter</button></div>');
 }
-function saveFree(){const p0=num(v('fp')),k0=num(v('fk'))||0;if(v('fp')===''||!(p0>=0)){err('ferr','Indique les protéines');return}const [p,k]=checkSwap(p0,k0),back=CTX,nm=v('fn')||'Autre';dlgClose();pushEntry(nm,p,k);if(back){CTX=null;openDay(back.d)}}
+function saveFree(){const p0=num(v('fp')),k0=num(v('fk'))||0;if(v('fp')===''||!(p0>=0)){err('ferr','Indique les protéines');return}const [p,k]=checkSwap(p0,k0),back=CTX,nm=v('fn')||'Autre';dlgClose();pushEntry(nm,p,k);if(back){CTX=null;if(back.d!==today())openDay(back.d)}}
 function addWeight(){const kg=num(v('wIn'));if(!(kg>30&&kg<250)){toast('Poids invalide');return}S.weights=S.weights.filter(x=>x.d!==today());S.weights.push({d:today(),kg});S.weights.sort((a,b)=>a.d.localeCompare(b.d));$('wIn').value='';save();render();vib();toast('Pesée notée')}
 function addWaist(){const cm=num(v('cIn'));if(!(cm>40&&cm<200)){toast('Mesure invalide');return}S.waist=S.waist.filter(x=>x.d!==today());S.waist.push({d:today(),cm});S.waist.sort((a,b)=>a.d.localeCompare(b.d));if(S.goal&&S.goal.cm&&S.goal.cmStart==null)S.goal.cmStart=cm;$('cIn').value='';save();render();vib();toast('Tour de taille noté')}
 let histAll=false;
@@ -1030,6 +1036,10 @@ function editTarget(k){
 }
 function saveTarget(k){const p=Math.round(num(v('tgP'))),kc=Math.round(num(v('tgK')));if(!(p>0&&kc>0)){err('tgErr','Valeurs invalides');return}S.targets[k]={p,k:kc};save();dlgClose();render();toast('Cible mise à jour')}
 function setTgt(ph,key,val){const n=Math.round(num(val));if(n>0){S.targets[ph][key]=n;save();render()}}
+const hh=x=>String(Math.floor(x)).padStart(2,'0')+':'+(x%1?'30':'00');
+function renderHours(){const H=S.hours;$('hoursSet').innerHTML=[['pdj','Petit-déj jusqu\'à'],['dej','Déjeuner jusqu\'à'],['col','Collation jusqu\'à']].map(([k,l])=>'<div class="row" style="padding:6px 0"><span>'+l+'</span><input type="time" step="1800" value="'+hh(H[k])+'" style="width:136px" onchange="setHour(\''+k+'\',this.value)"></div>').join('')+'<div class="mut" style="margin-top:4px">Dîner : après '+hh(H.col).replace(':','h')+'</div>'}
+function setHour(k,val){const m=/^(\d{1,2}):(\d{2})$/.exec(val||'');if(!m)return renderHours();const x=+m[1]+Math.round(+m[2]/30)/2;const H={...S.hours,[k]:x};
+  if(!(H.pdj<H.dej&&H.dej<H.col&&H.col<24)){toast('Les horaires doivent se suivre');return renderHours()}S.hours=H;save();render();toast('Horaires enregistrés')}
 function toggleDay(d){S.days=S.days.includes(d)?S.days.filter(x=>x!==d):[...S.days,d];save();render()}
 function setProf(key,val){const P=S.profile;if(key==='sex')P.sex=val;else if(key==='act')P.act=num(val);else{const n=Math.round(num(val));if(!(n>0))return render();P[key]=n}save();render()}
 function addPlan(){

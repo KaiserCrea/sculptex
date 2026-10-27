@@ -1,4 +1,4 @@
-const CACHE = 'sculptex-v18';
+const CACHE = 'sculptex-v19';
 const FILES = ['./', 'index.html', 'manifest.json', 'icon-192-v2.png', 'icon-512-v2.png', 'icon-mask-192-v3.png', 'icon-mask-512-v3.png'];
 
 self.addEventListener('install', e => {

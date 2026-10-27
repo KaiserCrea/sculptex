@@ -944,9 +944,16 @@ function saveGoal(){
 }
 
 /* ---------- graphique ---------- */
-let RANGE=90;
+let RANGE=30;
 function setRange(r){RANGE=r;document.querySelectorAll('[data-r]').forEach(x=>x.classList.toggle('on',+x.dataset.r===r));drawChart()}
 function phaseAt(d){let p=S.phases[0].p;for(const x of S.phases)if(x.start<=d)p=x.p;return p}
+/* courbe lissée monotone : passe par chaque pesée, sans dépasser */
+function smoothPath(P){const n=P.length;if(n<3)return 'M'+P.map(p=>p.join(',')).join(' L');
+  const d=[],m=[];for(let i=0;i<n-1;i++)d.push((P[i+1][1]-P[i][1])/((P[i+1][0]-P[i][0])||1e-6));
+  m[0]=d[0];m[n-1]=d[n-2];for(let i=1;i<n-1;i++)m[i]=d[i-1]*d[i]<=0?0:(d[i-1]+d[i])/2;
+  for(let i=0;i<n-1;i++){if(d[i]===0){m[i]=m[i+1]=0;continue}const a=m[i]/d[i],b=m[i+1]/d[i],t=a*a+b*b;if(t>9){const k=3/Math.sqrt(t);m[i]=k*a*d[i];m[i+1]=k*b*d[i]}}
+  let s='M'+P[0][0]+','+P[0][1];for(let i=0;i<n-1;i++){const h=(P[i+1][0]-P[i][0])/3;s+=' C'+(P[i][0]+h)+','+(P[i][1]+m[i]*h)+' '+(P[i+1][0]-h)+','+(P[i+1][1]-m[i+1]*h)+' '+P[i+1][0]+','+P[i+1][1]}
+  return s}
 function drawChart(){
   const el=$('chart');
   const now=parseD(today()),first=S.weights.length?parseD([...S.weights].sort((a,b)=>a.d.localeCompare(b.d))[0].d):now;
@@ -955,16 +962,18 @@ function drawChart(){
   if(pts.length<2){el.innerHTML='<div class="mut" style="padding:24px 0;text-align:center">La courbe apparaîtra après 2 pesées.</div>';return}
   const W=340,H=170,P=30,B=H-16;
   const vs=pts.map(p=>p.kg);if(S.goal&&S.goal.kg)vs.push(S.goal.kg);
-  const mn=Math.min(...vs)-0.5,mx=Math.max(...vs)+0.5;
-  const x=d=>P+(parseD(d)-from)/(now-from)*(W-P-8),y=val=>10+(mx-val)/(mx-mn)*(B-24);
+  const lo0=Math.min(...vs),hi0=Math.max(...vs),sp=hi0-lo0,tst=sp<=1.6?0.5:sp<=4?1:sp<=9?2:5;
+  let mn=Math.floor((lo0-0.15)/tst)*tst,mx=Math.ceil((hi0+0.15)/tst)*tst;if(mx-mn<2*tst)mx=mn+2*tst;
+  const x=d=>P+(parseD(d)-from)/(now-from)*(W-P-8),y=val=>16+(mx-val)/(mx-mn)*(B-30);
   let bands='';const step=Math.max(1,Math.round(SPAN/90));
   for(let i=0;i<SPAN;i+=step){const d=dkey(new Date(from.getTime()+i*864e5));bands+='<rect x="'+x(d)+'" y="'+(B-4)+'" width="'+Math.min((W-P-8)/SPAN*step+0.6,W-x(d))+'" height="4" fill="'+PH[phaseAt(d)].c+'"/>'}
-  const line=pts.map(p=>x(p.d)+','+y(p.kg)).join(' ');
-  const area='M'+x(pts[0].d)+','+(B-6)+' L'+line.replace(/ /g,' L')+' L'+x(pts[pts.length-1].d)+','+(B-6)+' Z';
-  const ticks=[mx-0.5,(mx+mn)/2,mn+0.5].map(val=>'<text x="0" y="'+(y(val)+4)+'" fill="#aaa294" font-size="10">'+fr(val)+'</text><line x1="'+P+'" x2="'+W+'" y1="'+y(val)+'" y2="'+y(val)+'" stroke="#2a2825" stroke-width="0.6"/>').join('');
+  const XY=pts.map(p=>[x(p.d),y(p.kg)]),curve=smoothPath(XY);
+  const area=curve+' L'+XY[XY.length-1][0]+','+(B-6)+' L'+XY[0][0]+','+(B-6)+' Z';
+  const TV=[];for(let v=mn;v<=mx+1e-9;v+=tst)TV.push(Math.round(v*10)/10);
+  const ticks=TV.map(val=>'<text x="0" y="'+(y(val)+4)+'" fill="#aaa294" font-size="10">'+fr(val,tst<1?1:0)+'</text><line x1="'+P+'" x2="'+W+'" y1="'+y(val)+'" y2="'+y(val)+'" stroke="#2a2825" stroke-width="0.6"/>').join('');
   const goalL=(S.goal&&S.goal.kg)?'<line x1="'+P+'" x2="'+W+'" y1="'+y(S.goal.kg)+'" y2="'+y(S.goal.kg)+'" stroke="#e9c27a" stroke-width="1" stroke-dasharray="4 4" opacity=".7"/><text x="'+(W-2)+'" y="'+(y(S.goal.kg)-4)+'" text-anchor="end" fill="#e9c27a" font-size="10">objectif</text>':'';
   const last=pts[pts.length-1];
-  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" width="100%"><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9c27a" stop-opacity=".38"/><stop offset="1" stop-color="#e9c27a" stop-opacity="0"/></linearGradient><linearGradient id="gl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b98a3c"/><stop offset="1" stop-color="#fff1c9"/></linearGradient></defs>'+ticks+goalL+'<path d="'+area+'" fill="url(#ga)"/>'+bands+'<polyline points="'+line+'" fill="none" stroke="url(#gl)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+x(last.d)+'" cy="'+y(last.kg)+'" r="6" fill="#f7dc9c" opacity=".25"/><circle cx="'+x(last.d)+'" cy="'+y(last.kg)+'" r="3.5" fill="#fff1c9"/></svg>';
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" width="100%"><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9c27a" stop-opacity=".38"/><stop offset="1" stop-color="#e9c27a" stop-opacity="0"/></linearGradient><linearGradient id="gl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b98a3c"/><stop offset="1" stop-color="#fff1c9"/></linearGradient></defs>'+ticks+goalL+'<path d="'+area+'" fill="url(#ga)"/>'+bands+'<path d="'+curve+'" fill="none" stroke="url(#gl)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+x(last.d)+'" cy="'+y(last.kg)+'" r="6" fill="#f7dc9c" opacity=".25"/><circle cx="'+x(last.d)+'" cy="'+y(last.kg)+'" r="3.5" fill="#fff1c9"/><text x="'+Math.min(x(last.d),W-4)+'" y="'+Math.max(10,y(last.kg)-10)+'" text-anchor="end" fill="#f7dc9c" font-size="11" font-weight="700">'+fr(last.kg)+' kg</text></svg>';
 }
 
 /* ---------- photos (stockées dans IndexedDB) ---------- */
@@ -1279,7 +1288,7 @@ let lastDay=today();
 setInterval(()=>{if(today()!==lastDay){lastDay=today();render()}},60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)render()});
 document.addEventListener('dblclick',e=>e.preventDefault());
-buildHeroes();showTab(curTab,0);setRange(90);render();loadPhotos();autoAdjust();
+buildHeroes();showTab(curTab,0);setRange(30);render();loadPhotos();autoAdjust();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)autoAdjust()});
 if('serviceWorker' in navigator){
   const hadCtrl=!!navigator.serviceWorker.controller;let reloaded=false;

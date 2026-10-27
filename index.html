@@ -58,6 +58,8 @@ input,select,textarea{font:inherit;color:var(--txt);background:#1a1917;border:1p
 textarea{resize:vertical;min-height:90px;line-height:1.4}
 .rc{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line2)}
 .rc:last-child{border-bottom:none}
+.rc.dragging{background:rgba(233,194,122,.12);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.rc .hdl{padding:6px 4px 6px 0}
 .rc .rn{flex:1;min-width:0;cursor:pointer}
 .rc .rn b{display:block;font-family:var(--serif);font-size:17px;color:var(--gold2)}
 .rc .rn span{font-size:13px;color:var(--mut)}
@@ -414,10 +416,16 @@ const START_RECIPES=[
   ing:['1 volume de riz','1,5 volume d\'eau','1 cube de bouillon de volaille','Persil','Citron'],
   steps:['Porter l\'eau et le cube à ébullition, ajouter le riz','Couvrir, feu doux, 11-12 min, sans égoutter','Persil et filet de citron en fin de cuisson']}
 ];
+const RCAT=[['pdj','Petit-déj','Petit-déj'],['plat','Plats','Plats complets'],['base','Bases','Bases et accompagnements']];
+function guessCat(r,txt){const n=String(txt||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(n){if(/petit|dej|matin|breakfast/.test(n))return'pdj';if(/base|accomp/.test(n))return'base';if(/plat|repas/.test(n))return'plat'}
+  const nm=String(r.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/porridge|pancake|overnight|muesli|granola/.test(nm))return'pdj';return r.mode==='100g'?'base':'plat'}
 function migrate(s){
   if(!s.profile)s.profile={sex:'h',h:185,age:39,act:1.55};
   if(!s.hours)s.hours={pdj:12,dej:15,col:18.5};
   if(!s.recipes)s.recipes=START_RECIPES.map(r=>({...r,id:uid()}));
+  s.recipes.forEach(r=>{if(!r.cat)r.cat=guessCat(r)});
   if(!s.plan)s.plan=[];
   if(!('goal' in s))s.goal=null;
   if(!s.fat)s.fat=[];
@@ -696,15 +704,21 @@ function paList(){const q=[...(S.recipes||[]).map(r=>({t:'r',id:r.id,name:r.name
 /* ---------- recettes ---------- */
 let recQ='';
 const recMac=r=>frInt(r.k)+' kcal · '+fN(r.p)+' g de protéines '+(r.mode==='100g'?'pour 100 g':'la portion');
+let recCat='all';
 function renderRecipes(){
   const R=S.recipes||[];
-  if(R.length>6&&!$('recS'))$('recTop').innerHTML='<input id="recS" placeholder="Rechercher une recette" style="margin:4px 0 6px" oninput="recQ=this.value;renderRecipes()">';
-  if(R.length<=6)$('recTop').innerHTML='';
-  const L=R.filter(r=>!recQ.trim()||norm(r.name).includes(norm(recQ.trim())));
-  $('recList').innerHTML=L.map(r=>'<div class="rc"><div class="rn" onclick="openRecipe(\''+r.id+'\')"><b>'+esc(r.name)+'</b><span>'+recMac(r)+'</span></div><button class="qa" aria-label="Ajouter" onclick="recAdd(\''+r.id+'\')">+</button></div>').join('')||'<div class="mut">'+(R.length?'Aucune recette trouvée.':'Aucune recette pour l\'instant.')+'</div>';
+  if(!$('recSeg'))$('recTop').innerHTML='<div class="seg" id="recSeg" style="margin:4px 0 10px"></div><input id="recS" placeholder="Rechercher une recette" style="margin:0 0 6px" oninput="recQ=this.value;renderRecipes()">';
+  $('recSeg').innerHTML=[['all','Tout'],...RCAT.map(c=>[c[0],c[1]])].map(([k,l])=>'<button class="'+(k===recCat?'on':'')+'" onclick="recCat=\''+k+'\';renderRecipes()">'+l+'</button>').join('');
+  const q=recQ.trim(),L=R.filter(r=>!q||norm(r.name).includes(norm(q)));
+  const row=r=>'<div class="rc" data-id="'+r.id+'">'+(q?'':'<span class="hdl" aria-label="Déplacer">≡</span>')+'<div class="rn" onclick="openRecipe(\''+r.id+'\')"><b>'+esc(r.name)+'</b><span>'+recMac(r)+'</span></div><button class="qa" aria-label="Ajouter" onclick="recAdd(\''+r.id+'\')">+</button></div>';
+  let h='';
+  (recCat==='all'?RCAT:RCAT.filter(c=>c[0]===recCat)).forEach(([k,,full])=>{const C=L.filter(r=>r.cat===k);if(!C.length)return;
+    if(recCat==='all')h+='<label style="margin-top:14px">'+full+' · '+C.length+'</label>';
+    h+='<div id="recL-'+k+'">'+C.map(row).join('')+'</div>'});
+  $('recList').innerHTML=h||'<div class="mut">'+(R.length?'Aucune recette trouvée.':'Aucune recette pour l\'instant.')+'</div>';
 }
 function openRecipe(id){const r=(S.recipes||[]).find(x=>x.id===id);if(!r)return;
-  dlgOpen('<div class="rfi"><h2>'+esc(r.name)+'</h2><div class="calc"><span>'+(r.mode==='100g'?'Pour 100 g':'La portion')+'</span><b>'+frInt(r.k)+' kcal · '+fN(r.p)+' g P</b></div>'+(r.total?'<div class="mut">Environ '+frInt(r.total)+' g au total</div>':'')+
+  dlgOpen('<div class="rfi"><h2>'+esc(r.name)+'</h2><div class="calc"><span>'+(r.mode==='100g'?'Pour 100 g':'La portion')+'</span><b>'+frInt(r.k)+' kcal · '+fN(r.p)+' g P</b></div>'+'<div class="mut">'+(RCAT.find(c=>c[0]===r.cat)||[,,''])[2]+(r.total?' · environ '+frInt(r.total)+' g au total':'')+'</div>'+
    (r.ing&&r.ing.length?'<label>Ingrédients</label><ul>'+r.ing.map(i=>'<li>'+esc(i)+'</li>').join('')+'</ul>':'')+
    (r.steps&&r.steps.length?'<label>Préparation</label><ol>'+r.steps.map(i=>'<li>'+esc(i)+'</li>').join('')+'</ol>':'')+
    '<button class="btn pri" style="width:100%;margin-top:16px" onclick="recAdd(\''+r.id+'\')">Ajouter à ma journée</button><div class="row" style="margin-top:10px"><button class="btn" onclick="editRecipe(\''+r.id+'\')">Modifier</button><button class="btn" onclick="dlgClose()">Fermer</button></div></div>');
@@ -732,6 +746,7 @@ function recSave(){const c=recCalc();if(!c){toast('Indique une quantité');retur
 function linesOf(t){return String(t||'').split(/\n/).map(x=>x.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,'').trim()).filter(Boolean)}
 function editRecipe(id,pre){const r=pre||(S.recipes||[]).find(x=>x.id===id)||{name:'',mode:'portion',p:'',k:'',ing:[],steps:[]};
   dlgOpen('<h2>'+(id?'Modifier la recette':pre?'Vérifier la recette':'Nouvelle recette')+'</h2><label>Nom</label><input id="reN" value="'+esc(r.name)+'" placeholder="Tortilla pommes de terre-œufs">'+
+   '<label>Catégorie</label><select id="reC">'+RCAT.map(c=>'<option value="'+c[0]+'"'+((r.cat||guessCat(r))===c[0]?' selected':'')+'>'+c[2]+'</option>').join('')+'</select>'+
    '<label>Valeurs</label><select id="reM" onchange="$(\'reTB\').style.display=this.value===\'100g\'?\'\':\'none\'"><option value="portion"'+(r.mode!=='100g'?' selected':'')+'>Pour une portion</option><option value="100g"'+(r.mode==='100g'?' selected':'')+'>Pour 100 g</option></select>'+
    '<div class="grid2"><div><label>Protéines (g)</label><input id="reP" type="number" inputmode="decimal" value="'+(r.p??'')+'"></div><div><label>Calories</label><input id="reK" type="number" inputmode="decimal" value="'+(r.k??'')+'"></div></div>'+
    '<div id="reTB" style="'+(r.mode==='100g'?'':'display:none')+'"><label>Poids total cuit (g, facultatif)</label><input id="reT" type="number" inputmode="decimal" value="'+(r.total||'')+'"></div>'+
@@ -742,7 +757,7 @@ function editRecipe(id,pre){const r=pre||(S.recipes||[]).find(x=>x.id===id)||{na
 function saveRecipe(id){const name=v('reN').trim(),mode=v('reM');let p=num(v('reP')),k=num(v('reK'));const total=num(v('reT'));
   if(!name){err('reErr','Donne un nom');return}if(!(p>=0)||!(k>0)){err('reErr','Indique les protéines et les calories');return}
   [p,k]=checkSwap(p,k);
-  const r={name,mode,p,k,total:mode==='100g'&&total>0?total:undefined,ing:linesOf(v('reI')),steps:linesOf(v('reS'))};
+  const r={name,mode,cat:v('reC'),p,k,total:mode==='100g'&&total>0?total:undefined,ing:linesOf(v('reI')),steps:linesOf(v('reS'))};
   S.recipes=S.recipes||[];
   if(id)Object.assign(S.recipes.find(x=>x.id===id),r);else S.recipes.push({id:uid(),...r});
   save();dlgClose();render();toast(id?'Recette modifiée':'Recette enregistrée');
@@ -750,7 +765,7 @@ function saveRecipe(id){const name=v('reN').trim(),mode=v('reM');let p=num(v('re
 function delRecipe(id){if(!confirm('Supprimer cette recette ?'))return;S.recipes=S.recipes.filter(x=>x.id!==id);save();dlgClose();render()}
 /* coller une recette */
 let PASTEQ=[];
-function pasteRecipe(){dlgOpen('<h2>Coller une recette</h2><div class="mut">Colle ici le texte de la recette (format « RECETTE : … »). Tu pourras vérifier la fiche avant de l\'enregistrer. Plusieurs recettes à la suite fonctionnent aussi.</div><textarea id="paT" style="min-height:220px;margin-top:10px" placeholder="RECETTE : Tortilla pommes de terre-œufs&#10;MACROS : 565 kcal / 31 g P par portion&#10;INGRÉDIENTS :&#10;- 300 g de pommes de terre&#10;ÉTAPES :&#10;1. …"></textarea><div id="paErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="pasteGo()">Lire la recette</button></div>')}
+function pasteRecipe(){dlgOpen('<h2>Coller une recette</h2><div class="mut">Colle ici le texte de la recette (format « RECETTE : … »). Tu pourras vérifier la fiche avant de l\'enregistrer. Plusieurs recettes à la suite fonctionnent aussi.</div><textarea id="paT" style="min-height:220px;margin-top:10px" placeholder="RECETTE : Tortilla pommes de terre-œufs&#10;CATÉGORIE : Plats&#10;MACROS : 565 kcal / 31 g P par portion&#10;INGRÉDIENTS :&#10;- 300 g de pommes de terre&#10;ÉTAPES :&#10;1. …"></textarea><div id="paErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="pasteGo()">Lire la recette</button></div>')}
 function parseRecipes(txt){
   const N=t=>t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const blocks=String(txt||'').replace(/\r/g,'').split(/^\s*(?:\*\*)?\s*recette\s*(?:\*\*)?\s*:/im).slice(1);
@@ -760,11 +775,12 @@ function parseRecipes(txt){
     lines.forEach(L=>{const l=L.replace(/\*\*/g,'').trim();if(!l)return;const n=N(l);
       if(/^macros?\s*:/.test(n)){const k=/([\d.,]+)\s*kcal/.exec(n),p=/([\d.,]+)\s*g\s*(?:de\s*)?(?:p\b|prot)/.exec(n),t=/total[^\d]*([\d\s.,]+)\s*g/.exec(n);
         if(k)r.k=num(k[1]);if(p)r.p=num(p[1]);if(/100\s*g/.test(n))r.mode='100g';if(t)r.total=num(t[1].replace(/\s/g,''));sec=null;return}
+      if(/^categorie\s*:/.test(n)){r.cat=guessCat(r,n.split(':').slice(1).join(':'));sec=null;return}
       if(/^ingredients?\s*:?$/.test(n)||/^ingredients?\s*:/.test(n)){sec='ing';const rest=l.split(':').slice(1).join(':').trim();if(rest)r.ing.push(...rest.split(/,\s*/));return}
       if(/^(etapes?|preparation)\s*:?/.test(n)){sec='steps';return}
       if(sec==='ing')r.ing.push(l.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,''));else if(sec==='steps')r.steps.push(l.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,''));
     });
-    return r}).filter(r=>r.name);
+    if(!r.cat)r.cat=guessCat(r);return r}).filter(r=>r.name);
 }
 function pasteGo(){const R=parseRecipes(v('paT'));
   if(!R.length){err('paErr','Je ne trouve pas de recette : le texte doit commencer par « RECETTE : nom ».');return}
@@ -872,7 +888,8 @@ document.addEventListener('pointermove',e=>{
 },{passive:false});
 const endDrag=()=>{
   if(!drag)return;const ids=[...drag.list.children].map(r=>r.dataset.id).filter(Boolean);
-  const arr=drag.id==='foodList'?S.foods:S.groups;arr.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id));
+  if(drag.id.startsWith('recL-')){const cat=drag.id.slice(5),by={};S.recipes.forEach(r=>by[r.id]=r);let i=0;S.recipes=S.recipes.map(r=>r.cat===cat&&ids[i]?by[ids[i++]]:r)}
+  else{const arr=drag.id==='foodList'?S.foods:S.groups;arr.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id))}
   drag.row.classList.remove('dragging');drag=null;save();render();
 };
 document.addEventListener('pointerup',endDrag);document.addEventListener('pointercancel',endDrag);

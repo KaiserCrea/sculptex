@@ -323,7 +323,8 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
         <summary>Comment ça fonctionne ?</summary>
         <p><b style="color:var(--txt)">Métabolisme de base.</b> C'est l'énergie que ton corps brûle au repos complet : respirer, faire battre le cœur, maintenir la température. L'appli utilise la formule de Mifflin-St Jeor, à partir de ton poids, ta taille, ton âge et ton sexe. Ton % de gras ne change pas ce calcul : il sert à suivre ta composition et à fixer tes protéines. Ton poids est repris automatiquement de tes pesées.</p>
         <p><b style="color:var(--txt)">Entretien selon la formule.</b> On multiplie le métabolisme de base par ton niveau d'activité. C'est une estimation de départ, avec une marge d'environ 10 %.</p>
-        <p><b style="color:var(--txt)">Entretien selon tes données.</b> L'appli regarde les 21 derniers jours : la moyenne des calories notées et l'évolution de ton poids. Un kilo de graisse vaut environ 7 700 kcal : si tu perds du poids, tu as mangé sous ton entretien, et l'écart le révèle. Il faut au moins 14 jours notés et 5 pesées ; les jours sous 1 000 kcal sont ignorés car jugés incomplets.</p>
+        <p><b style="color:var(--txt)">Entretien selon tes données.</b> L'appli regarde les 4 dernières semaines : la moyenne des calories notées et l'évolution de ton poids. Un kilo de graisse vaut environ 7 700 kcal : si tu perds du poids, tu as mangé sous ton entretien, et l'écart le révèle. Il faut au moins 21 jours notés et 8 pesées ; les jours sous 1 000 kcal sont ignorés car jugés incomplets.</p>
+        <p><b style="color:var(--txt)">Ajustement progressif.</b> Pour ne pas réagir aux variations d'eau, ton entretien ne bouge que de 150 kcal au maximum par semaine, en partant de ta cible Entretien actuelle (même si tu l'as modifiée à la main).</p>
         <p><b style="color:var(--txt)">Proposer mes cibles.</b> À partir de l'entretien (tes données si disponibles, sinon la formule) : sèche = entretien − 500 kcal, prise de masse = entretien + 250 kcal. Protéines : avec ton % de gras, 2,5 g par kilo de masse sèche en sèche et 2,2 g en entretien et prise de masse ; sans, 2,1 g et 1,85 g par kilo de poids.</p>
         <p><b style="color:var(--txt)">Cibles automatiques.</b> Si l'option est activée, l'appli refait ce calcul une fois par semaine avec ta moyenne de poids, ton dernier % de gras et ton entretien réel quand il est disponible, et te prévient des nouvelles cibles.</p>
         <p><b style="color:var(--txt)">Calculer pour quelqu'un.</b> Même calcul pour un ami, sans rien enregistrer ni toucher à tes données.</p>
@@ -550,8 +551,8 @@ function protTargets(){
 }
 function computeTargets(){
   const F=tdeeFormula(),R=tdeeReal(),pr=protTargets();if(!F||!pr)return null;
-  const base=R.ok?R.tdee:F.tdee;
-  return{base,src:R.ok?'tes données':'la formule',N:{seche:{p:pr.seche,k:r50(base-500)},entretien:{p:pr.entretien,k:r50(base)},masse:{p:pr.masse,k:r50(base+250)}}};
+  const raw=R.ok?R.tdee:F.tdee,ref=S.targets&&S.targets.entretien&&S.targets.entretien.k,base=ref>0?Math.min(ref+150,Math.max(ref-150,raw)):raw;
+  return{base,raw,src:R.ok?'tes données':'la formule',N:{seche:{p:pr.seche,k:r50(base-500)},entretien:{p:pr.entretien,k:r50(base)},masse:{p:pr.masse,k:r50(base+250)}}};
 }
 function autoAdjust(){
   if(!S.auto)return;
@@ -565,9 +566,9 @@ function autoAdjust(){
 function setAuto(on){S.auto=on;if(on)S.autoLast=null;save();render();if(on)autoAdjust()}
 function tdeeReal(){
   const now=parseD(today()),kc=[];
-  for(let i=1;i<=21;i++){const L=S.log[dkey(new Date(now-i*864e5))];if(L&&L.length){const k=L.reduce((a,e)=>a+e.k,0);if(k>=1000)kc.push(k)}}
-  const ws=S.weights.filter(w=>{const a=(now-parseD(w.d))/864e5;return a>=0&&a<=21});
-  if(kc.length<14||ws.length<5)return{ok:false,days:kc.length,ws:ws.length};
+  for(let i=1;i<=28;i++){const L=S.log[dkey(new Date(now-i*864e5))];if(L&&L.length){const k=L.reduce((a,e)=>a+e.k,0);if(k>=1000)kc.push(k)}}
+  const ws=S.weights.filter(w=>{const a=(now-parseD(w.d))/864e5;return a>=0&&a<=28});
+  if(kc.length<21||ws.length<8)return{ok:false,days:kc.length,ws:ws.length};
   const sl=slopeOf(ws.map(w=>({d:w.d,val:w.kg})));
   if(sl==null)return{ok:false,days:kc.length,ws:ws.length};
   const avg=kc.reduce((a,b)=>a+b,0)/kc.length;
@@ -642,7 +643,7 @@ function render(){
   $('cAct').textContent=F?frInt(F.tdee-F.bmr)+' kcal':'–';
   $('tdeeF').textContent=F?frInt(r50(F.tdee))+' kcal':'–';
   $('tdeeR').textContent=R.ok?frInt(r50(R.tdee))+' kcal':'–';
-  $('tdeeRinfo').textContent=R.ok?'sur '+R.days+' jours notés':'Disponible après '+Math.max(0,14-R.days)+' j notés et '+Math.max(0,5-R.ws)+' pesées de plus';
+  $('tdeeRinfo').textContent=R.ok?'sur '+R.days+' jours notés':'Disponible après '+Math.max(0,21-R.days)+' j notés et '+Math.max(0,8-R.ws)+' pesées de plus';
   $('targets').innerHTML=Object.keys(PH).map(k=>'<button class="tgt'+(k===ph.p?' cur':'')+'" onclick="editTarget(\''+k+'\')"><span class="tn" style="color:'+PH[k].c+'">'+PH[k].n+(k===ph.p?'<span class="bdg">en cours</span>':'')+'</span><span class="tv">'+S.targets[k].p+' g · '+frInt(S.targets[k].k)+' kcal</span><span style="color:var(--gold)">›</span></button>').join('');
   $('bkInfo').textContent=S.lastBackup?'Dernière sauvegarde : '+parseD(S.lastBackup).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'.':'Aucune sauvegarde pour l\'instant.';
   if($('hoursSet'))renderHours();
@@ -1238,7 +1239,7 @@ function proposeTargets(){
   if(!C){toast('Note d\'abord une pesée');return}
   const base=C.base,src=C.src;
   window._N=C.N;
-  dlgOpen('<h2>Cibles proposées</h2><div class="mut">D\'après '+src+' : entretien ≈ '+frInt(r50(base))+' kcal.</div><div class="list" style="margin-top:8px">'+
+  dlgOpen('<h2>Cibles proposées</h2><div class="mut">D\'après '+src+' : entretien ≈ '+frInt(r50(C.raw))+' kcal.'+(Math.abs(C.raw-base)>1?' Ajustement progressif : '+frInt(r50(base))+' kcal cette semaine (150 kcal max par semaine).':'')+'</div><div class="list" style="margin-top:8px">'+
     Object.keys(PH).map(k=>'<div><span style="color:'+PH[k].c+';font-family:var(--serif);font-weight:700">'+PH[k].n+'</span><span>'+window._N[k].p+' g · '+frInt(window._N[k].k)+' kcal</span></div>').join('')+
     '</div><div class="row" style="margin-top:16px"><button class="btn" onclick="dlgClose()">Garder les miennes</button><button class="btn pri" onclick="applyTargets()">Appliquer</button></div>');
 }

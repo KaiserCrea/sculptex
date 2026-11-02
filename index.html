@@ -286,16 +286,25 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
         <div class="grid2" style="margin-top:8px">
           <div><label>Phase</label><select id="plP"><option value="seche">Sèche</option><option value="entretien">Entretien</option><option value="masse">Prise de masse</option></select></div>
           <div><label>À partir du</label><input type="date" id="plD"></div>
+          <div><label>Poids visé (kg)</label><input type="number" inputmode="decimal" id="plK" placeholder="facultatif"></div>
+          <div><label>Tour de taille visé (cm)</label><input type="number" inputmode="decimal" id="plC" placeholder="facultatif"></div>
         </div>
         <div id="plErr" style="color:var(--red);font-size:13px;margin-top:6px"></div>
         <button class="btn pri" style="width:100%;margin-top:10px" onclick="addPlan()">+ Ajouter l'étape</button>
         <button class="btn" style="width:100%;margin-top:8px" onclick="proposePlan()">Proposer un planning</button>
+      </details>
+      <details id="ltDet">
+        <summary>Mon objectif long terme</summary>
+        <div id="ltTxt" class="mut" style="margin:8px 0;white-space:pre-line;line-height:1.5"></div>
+        <button class="btn" style="width:100%" onclick="editLT()">Modifier</button>
       </details>
     </div>
 
     <div class="card">
       <h2>Mes cibles</h2>
       <div id="targets"></div>
+      <div class="row" style="padding:10px 0 2px"><span>Déficit de la sèche</span><select id="defSel" style="width:150px" onchange="setDeficit(this.value)"><option value="300">− 300 kcal</option><option value="400">− 400 kcal</option><option value="500">− 500 kcal</option><option value="600">− 600 kcal</option><option value="700">− 700 kcal</option></select></div>
+      <div class="mut" style="margin-bottom:4px">Si tu modifies l'Entretien à la main, la Sèche et la Prise de masse suivent.</div>
       <div class="chk" style="margin-top:8px"><input type="checkbox" id="autoT" onchange="setAuto(this.checked)"><span>Ajuster mes cibles automatiquement chaque semaine</span></div>
       <div class="mut" id="autoInfo" style="margin-bottom:6px"></div>
       <button class="btn pri" style="width:100%;margin-top:8px" onclick="proposeTargets()">Proposer mes cibles</button>
@@ -325,7 +334,7 @@ video{width:100%;border-radius:14px;background:#000;max-height:46vh;object-fit:c
         <p><b style="color:var(--txt)">Entretien selon la formule.</b> On multiplie le métabolisme de base par ton niveau d'activité. C'est une estimation de départ, avec une marge d'environ 10 %.</p>
         <p><b style="color:var(--txt)">Entretien selon tes données.</b> L'appli regarde les 4 dernières semaines : la moyenne des calories notées et l'évolution de ton poids. Un kilo de graisse vaut environ 7 700 kcal : si tu perds du poids, tu as mangé sous ton entretien, et l'écart le révèle. Il faut au moins 21 jours notés et 8 pesées ; les jours sous 1 000 kcal sont ignorés car jugés incomplets.</p>
         <p><b style="color:var(--txt)">Ajustement progressif.</b> Pour ne pas réagir aux variations d'eau, ton entretien ne bouge que de 150 kcal au maximum par semaine, en partant de ta cible Entretien actuelle (même si tu l'as modifiée à la main).</p>
-        <p><b style="color:var(--txt)">Proposer mes cibles.</b> À partir de l'entretien (tes données si disponibles, sinon la formule) : sèche = entretien − 500 kcal, prise de masse = entretien + 250 kcal. Protéines : avec ton % de gras, 2,5 g par kilo de masse sèche en sèche et 2,2 g en entretien et prise de masse ; sans, 2,1 g et 1,85 g par kilo de poids.</p>
+        <p><b style="color:var(--txt)">Proposer mes cibles.</b> À partir de l'entretien (tes données si disponibles, sinon la formule) : sèche = entretien − ton déficit (500 kcal par défaut, réglable sous Mes cibles), prise de masse = entretien + 250 kcal. Protéines : avec ton % de gras, 2,5 g par kilo de masse sèche en sèche et 2,2 g en entretien et prise de masse ; sans, 2,1 g et 1,85 g par kilo de poids.</p>
         <p><b style="color:var(--txt)">Cibles automatiques.</b> Si l'option est activée, l'appli refait ce calcul une fois par semaine avec ta moyenne de poids, ton dernier % de gras et ton entretien réel quand il est disponible, et te prévient des nouvelles cibles.</p>
         <p><b style="color:var(--txt)">Calculer pour quelqu'un.</b> Même calcul pour un ami, sans rien enregistrer ni toucher à tes données.</p>
       </details>
@@ -425,6 +434,16 @@ function guessCat(r,txt){const n=String(txt||'').normalize('NFD').replace(/[\u03
 function migrate(s){
   if(!s.profile)s.profile={sex:'h',h:185,age:39,act:1.55};
   if(!s.hours)s.hours={pdj:12,dej:15,col:18.5};
+  if(!s.deficit)s.deficit=500;
+  if(!s.v21){s.v21=1;
+    const seed={'seche|2027-03-01':{kg:82,cm:85},'entretien|2027-06-21':{kg:82,cm:85},'masse|2027-09-01':{kg:87}};
+    (s.plan||[]).forEach(x=>{const t=seed[x.p+'|'+x.start];if(t&&x.kg==null&&x.cm==null)Object.assign(x,t)});
+    const cp=s.phases&&s.phases[s.phases.length-1];
+    if(cp&&cp.p==='seche'&&!(s.plan||[]).some(x=>x.start>'2026-11-30'&&x.start<'2027-01-01')&&new Date()<new Date(2026,11,15))
+      (s.plan=s.plan||[]).push({id:Math.random().toString(36).slice(2,9),p:'entretien',start:'2026-12-15',kg:84,cm:89});
+    if(s.targets&&s.targets.seche&&s.targets.entretien&&s.targets.seche.k>s.targets.entretien.k-300)s.targets.seche.k=Math.round((s.targets.entretien.k-s.deficit)/50)*50;
+    if(!s.longTerm)s.longTerm="Objectif : 90 kg sec (≈ 10 % de gras), ≈ +8 kg de muscle, horizon ≈ 2032.\nRepère : poids en fin de sèche à ≈ 84 cm de tour de taille.\n2027 : ≈ 82 kg\n2028 : ≈ 83,5 kg\n2029 : ≈ 85 kg\n2030 : ≈ 86,5 kg\n2031 : ≈ 88 kg\n2032 : ≈ 89–90 kg\nUn cycle sèche / entretien / prise de masse par an, ≈ +1,5 kg de muscle par an.";
+  }
   if(!s.recipes)s.recipes=START_RECIPES.map(r=>({...r,id:uid()}));
   s.recipes.forEach(r=>{if(!r.cat)r.cat=guessCat(r)});
   if(!s.plan)s.plan=[];
@@ -552,7 +571,7 @@ function protTargets(){
 function computeTargets(){
   const F=tdeeFormula(),R=tdeeReal(),pr=protTargets();if(!F||!pr)return null;
   const raw=R.ok?R.tdee:F.tdee,ref=S.targets&&S.targets.entretien&&S.targets.entretien.k,base=ref>0?Math.min(ref+150,Math.max(ref-150,raw)):raw;
-  return{base,raw,src:R.ok?'tes données':'la formule',N:{seche:{p:pr.seche,k:r50(base-500)},entretien:{p:pr.entretien,k:r50(base)},masse:{p:pr.masse,k:r50(base+250)}}};
+  return{base,raw,src:R.ok?'tes données':'la formule',N:{seche:{p:pr.seche,k:r50(base-(S.deficit||500))},entretien:{p:pr.entretien,k:r50(base)},masse:{p:pr.masse,k:r50(base+250)}}};
 }
 function autoAdjust(){
   if(!S.auto)return;
@@ -628,7 +647,7 @@ function render(){
   $('phaseInfo').textContent='Semaine '+(w+1)+' '+deP(info.n.toLowerCase())+'.';
   $('planSum').textContent='Programmer la suite'+(S.plan.length?' ('+S.plan.length+' étape'+(S.plan.length>1?'s':'')+')':'');
   const pl=S.plan.slice().sort((a,b)=>a.start.localeCompare(b.start));
-  $('planList').innerHTML=pl.length?pl.map(x=>'<div><span><span style="color:'+PH[x.p].c+';font-family:var(--serif);font-weight:700">'+PH[x.p].n+'</span><br><span class="mut">à partir du '+parseD(x.start).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</span></span><button class="x" onclick="delPlan(\''+x.id+'\')">×</button></div>').join(''):'<div class="mut">Aucune étape programmée.</div>';
+  $('planList').innerHTML=pl.length?pl.map(x=>'<div><span><span style="color:'+PH[x.p].c+';font-family:var(--serif);font-weight:700">'+PH[x.p].n+'</span><br><span class="mut">à partir du '+parseD(x.start).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+(x.kg||x.cm?' · vise '+[x.kg?fr(x.kg,x.kg%1?1:0)+' kg':'',x.cm?fr(x.cm,x.cm%1?1:0)+' cm':''].filter(Boolean).join(' / '):'')+'</span></span><button class="btn" style="padding:6px 12px" onclick="editPlan(\''+x.id+'\')">Modifier</button></div>').join(''):'<div class="mut">Aucune étape programmée.</div>';
   const P=S.profile,cw=curWeight();
   $('prW').value=cw?cw.toFixed(1):'';{const lf=S.fat[S.fat.length-1];$('prF').value=lf?fr(lf.pct)+' %'+(daysBetween(lf.d,today())>60?' (ancien)':''):'non noté'}$('prH').value=P.h;$('prA').value=P.age;$('prS').value=P.sex;
   if(!$('prAct').options.length)$('prAct').innerHTML=ACT.map(a=>'<option value="'+a[0]+'">'+a[1]+'</option>').join('');
@@ -645,6 +664,8 @@ function render(){
   $('tdeeR').textContent=R.ok?frInt(r50(R.tdee))+' kcal':'–';
   $('tdeeRinfo').textContent=R.ok?'sur '+R.days+' jours notés':'Disponible après '+Math.max(0,21-R.days)+' j notés et '+Math.max(0,8-R.ws)+' pesées de plus';
   $('targets').innerHTML=Object.keys(PH).map(k=>'<button class="tgt'+(k===ph.p?' cur':'')+'" onclick="editTarget(\''+k+'\')"><span class="tn" style="color:'+PH[k].c+'">'+PH[k].n+(k===ph.p?'<span class="bdg">en cours</span>':'')+'</span><span class="tv">'+S.targets[k].p+' g · '+frInt(S.targets[k].k)+' kcal</span><span style="color:var(--gold)">›</span></button>').join('');
+  if($('defSel'))$('defSel').value=String(S.deficit||500);
+  if($('ltTxt'))$('ltTxt').textContent=S.longTerm||'Aucun objectif long terme pour l\'instant.';
   $('bkInfo').textContent=S.lastBackup?'Dernière sauvegarde : '+parseD(S.lastBackup).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'.':'Aucune sauvegarde pour l\'instant.';
   if($('hoursSet'))renderHours();
   $('days').innerHTML='<div class="seg">'+[1,2,3,4,5,6,0].map(d=>'<button class="'+(S.days.includes(d)?'on':'')+'" onclick="toggleDay('+d+')">'+DAYN[d]+'</button>').join('')+'</div>';
@@ -1181,7 +1202,10 @@ function editTarget(k){
    (S.auto?'<div class="mut" style="margin-top:8px">L\'ajustement automatique est activé : cette cible sera recalculée au prochain ajustement.</div>':'')+
    '<div id="tgErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="saveTarget(\''+k+'\')">Enregistrer</button></div>');
 }
-function saveTarget(k){const p=Math.round(num(v('tgP'))),kc=Math.round(num(v('tgK')));if(!(p>0&&kc>0)){err('tgErr','Valeurs invalides');return}S.targets[k]={p,k:kc};save();dlgClose();render();toast('Cible mise à jour')}
+function saveTarget(k){const p=Math.round(num(v('tgP'))),kc=Math.round(num(v('tgK')));if(!(p>0&&kc>0)){err('tgErr','Valeurs invalides');return}S.targets[k]={p,k:kc};if(k==='entretien')followEnt();save();dlgClose();render();toast('Cible mise à jour')}
+function followEnt(){const e=S.targets.entretien.k;S.targets.seche.k=r50(e-(S.deficit||500));S.targets.masse.k=r50(e+250)}
+function editLT(){dlgOpen('<h2>Mon objectif long terme</h2><textarea id="ltT" style="min-height:240px">'+esc(S.longTerm||'')+'</textarea><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="S.longTerm=v(\'ltT\').trim();save();dlgClose();render();toast(\'Objectif enregistré\')">Enregistrer</button></div>')}
+function setDeficit(val){const d=Math.round(num(val));if(!(d>=200&&d<=800))return;S.deficit=d;S.targets.seche.k=r50(S.targets.entretien.k-d);save();render();toast('Sèche : '+frInt(S.targets.seche.k)+' kcal')}
 function setTgt(ph,key,val){const n=Math.round(num(val));if(n>0){S.targets[ph][key]=n;save();render()}}
 const hh=x=>String(Math.floor(x)).padStart(2,'0')+':'+(x%1?'30':'00');
 function renderHours(){const H=S.hours;$('hoursSet').innerHTML=[['pdj','Petit-déj jusqu\'à'],['dej','Déjeuner jusqu\'à'],['col','Collation jusqu\'à']].map(([k,l])=>'<div class="row" style="padding:6px 0"><span>'+l+'</span><input type="time" step="1800" value="'+hh(H[k])+'" style="width:136px" onchange="setHour(\''+k+'\',this.value)"></div>').join('')+'<div class="mut" style="margin-top:4px">Dîner : après '+hh(H.col).replace(':','h')+'</div>'}
@@ -1194,12 +1218,20 @@ function addPlan(){
   if(!d){err('plErr','Choisis une date');return}
   if(d<=today()){err('plErr','Choisis une date à venir (pour aujourd\'hui, change la phase en haut)');return}
   if(S.plan.some(x=>x.start===d)){err('plErr','Une étape existe déjà à cette date');return}
-  S.plan.push({id:uid(),p,start:d});$('plD').value='';save();render();toast('Étape ajoutée au planning');
+  const kg=num(v('plK')),cm=num(v('plC'));
+  S.plan.push({id:uid(),p,start:d,kg:kg>30?kg:null,cm:cm>40?cm:null});$('plD').value='';$('plK').value='';$('plC').value='';save();render();toast('Étape ajoutée au planning');
 }
+function editPlan(id){const x=S.plan.find(y=>y.id===id);if(!x)return;
+  dlgOpen('<h2 style="color:'+PH[x.p].c+'">'+PH[x.p].n+'</h2><div class="mut">À partir du '+parseD(x.start).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'. Le jour venu, « Mon objectif » prendra ces valeurs.</div>'+
+   '<div class="grid2"><div><label>Poids visé (kg)</label><input id="epK" type="number" inputmode="decimal" value="'+(x.kg||'')+'"></div><div><label>Tour de taille visé (cm)</label><input id="epC" type="number" inputmode="decimal" value="'+(x.cm||'')+'"></div></div>'+
+   '<div class="row" style="margin-top:14px"><button class="btn danger" onclick="if(confirm(\'Supprimer cette étape ?\')){delPlan(\''+id+'\');dlgClose()}">Supprimer</button><button class="btn pri" onclick="savePlanT(\''+id+'\')">Enregistrer</button></div>')}
+function savePlanT(id){const x=S.plan.find(y=>y.id===id);if(!x)return;const kg=num(v('epK')),cm=num(v('epC'));x.kg=kg>30?kg:null;x.cm=cm>40?cm:null;save();dlgClose();render();toast('Étape mise à jour')}
 function delPlan(id){S.plan=S.plan.filter(x=>x.id!==id);save();render()}
 function applyPlan(){
   const due=S.plan.filter(x=>x.start<=today()).sort((a,b)=>b.start.localeCompare(a.start))[0];if(!due)return;
-  switchPhase(due.p);S.plan=S.plan.filter(x=>x.start>today());save();render();toast('Phase : '+PH[due.p].n);
+  switchPhase(due.p);S.plan=S.plan.filter(x=>x.start>today());
+  if(due.kg||due.cm){const cw=curWeight(),lc=S.waist[S.waist.length-1];S.goal={kg:due.kg||null,cm:due.cm||null,kgStart:due.kg?(cw||due.kg):null,cmStart:due.cm&&lc?lc.cm:null}}
+  save();render();toast('Phase : '+PH[due.p].n+(due.kg||due.cm?' · objectif mis à jour':''));
 }
 let planSnooze=false;
 /* ---------- planning proposé (calé sur les saisons) ----------

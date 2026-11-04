@@ -60,6 +60,7 @@ textarea{resize:vertical;min-height:90px;line-height:1.4}
 .rc:last-child{border-bottom:none}
 .rc.dragging{background:rgba(233,194,122,.12);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
 .rc .hdl{padding:6px 4px 6px 0}
+.rtg{display:inline-block;font-size:11px;border:1px solid;border-radius:8px;padding:1px 6px;margin-right:4px}
 .rc .rn{flex:1;min-width:0;cursor:pointer}
 .rc .rn b{display:block;font-family:var(--serif);font-size:17px;color:var(--gold2)}
 .rc .rn span{font-size:13px;color:var(--mut)}
@@ -427,6 +428,10 @@ const START_RECIPES=[
   steps:['Porter l\'eau et le cube à ébullition, ajouter le riz','Couvrir, feu doux, 11-12 min, sans égoutter','Persil et filet de citron en fin de cuisson']}
 ];
 const RCAT=[['pdj','Petit-déj','Petit-déj'],['plat','Plats','Plats complets'],['base','Bases','Bases et accompagnements']];
+function autoTags(r){const k=+r.k||0,p=+r.p||0;if(!k)return[];if(r.mode==='100g')return['masse'];const ratio=p/k*100,t=[];
+  if(ratio>=7.5&&k<=650)t.push('seche');if(k>=650||ratio<6)t.push('masse');return t}
+const TAGC={seche:['Sèche','var(--green)'],masse:['Masse','var(--orange)']};
+const tagChips=r=>(r.tags||[]).length?'<div style="margin-top:5px">'+r.tags.map(t=>'<span class="rtg" style="border-color:'+TAGC[t][1]+';color:'+TAGC[t][1]+'">'+TAGC[t][0]+'</span>').join('')+'</div>':'';
 function guessCat(r,txt){const n=String(txt||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   if(n){if(/petit|dej|matin|breakfast/.test(n))return'pdj';if(/base|accomp/.test(n))return'base';if(/plat|repas/.test(n))return'plat'}
   const nm=String(r.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -445,7 +450,7 @@ function migrate(s){
     if(!s.longTerm)s.longTerm="Objectif : 90 kg sec (≈ 10 % de gras), ≈ +8 kg de muscle, horizon ≈ 2032.\nRepère : poids en fin de sèche à ≈ 84 cm de tour de taille.\n2027 : ≈ 82 kg\n2028 : ≈ 83,5 kg\n2029 : ≈ 85 kg\n2030 : ≈ 86,5 kg\n2031 : ≈ 88 kg\n2032 : ≈ 89–90 kg\nUn cycle sèche / entretien / prise de masse par an, ≈ +1,5 kg de muscle par an.";
   }
   if(!s.recipes)s.recipes=START_RECIPES.map(r=>({...r,id:uid()}));
-  s.recipes.forEach(r=>{if(!r.cat)r.cat=guessCat(r)});
+  s.recipes.forEach(r=>{if(!r.cat)r.cat=guessCat(r);if(!Array.isArray(r.tags))r.tags=autoTags(r)});
   if(!s.plan)s.plan=[];
   if(!('goal' in s))s.goal=null;
   if(!s.fat)s.fat=[];
@@ -730,14 +735,16 @@ let recCat='all';
 function renderRecipes(){
   const R=S.recipes||[];
   if(!$('recSeg'))$('recTop').innerHTML='<div class="seg" id="recSeg" style="margin:4px 0 10px"></div><input id="recS" placeholder="Rechercher une recette" style="margin:0 0 6px" oninput="recQ=this.value;renderRecipes()">';
-  $('recSeg').innerHTML=[['all','Tout'],...RCAT.map(c=>[c[0],c[1]])].map(([k,l])=>'<button class="'+(k===recCat?'on':'')+'" onclick="recCat=\''+k+'\';renderRecipes()">'+l+'</button>').join('');
-  const q=recQ.trim(),L=R.filter(r=>!q||norm(r.name).includes(norm(q)));
-  const row=r=>'<div class="rc" data-id="'+r.id+'">'+(q?'':'<span class="hdl" aria-label="Déplacer">≡</span>')+'<div class="rn" onclick="openRecipe(\''+r.id+'\')"><b>'+esc(r.name)+'</b><span>'+recMac(r)+'</span></div><button class="qa" aria-label="Ajouter" onclick="recAdd(\''+r.id+'\')">+</button></div>';
+  const php=cur().p,hasPh=php==='seche'||php==='masse';if(recCat==='ph'&&!hasPh)recCat='all';
+  $('recSeg').innerHTML=[['all','Tout'],...RCAT.map(c=>[c[0],c[1]]),...(hasPh?[['ph','Ma phase']]:[])].map(([k,l])=>'<button class="'+(k===recCat?'on':'')+'" onclick="recCat=\''+k+'\';renderRecipes()">'+l+'</button>').join('');
+  const q=recQ.trim(),L=R.filter(r=>(!q||norm(r.name).includes(norm(q)))&&(recCat!=='ph'||(r.tags||[]).includes(php)));
+  const row=r=>'<div class="rc" data-id="'+r.id+'">'+(q||recCat==='ph'?'':'<span class="hdl" aria-label="Déplacer">≡</span>')+'<div class="rn" onclick="openRecipe(\''+r.id+'\')"><b>'+esc(r.name)+'</b><span>'+recMac(r)+'</span>'+tagChips(r)+'</div><button class="qa" aria-label="Ajouter" onclick="recAdd(\''+r.id+'\')">+</button></div>';
   let h='';
-  (recCat==='all'?RCAT:RCAT.filter(c=>c[0]===recCat)).forEach(([k,,full])=>{const C=L.filter(r=>r.cat===k);if(!C.length)return;
-    if(recCat==='all')h+='<label style="margin-top:14px">'+full+' · '+C.length+'</label>';
+  ((recCat==='all'||recCat==='ph')?RCAT:RCAT.filter(c=>c[0]===recCat)).forEach(([k,,full])=>{const C=L.filter(r=>r.cat===k);if(!C.length)return;
+    if(recCat==='all'||recCat==='ph')h+='<label style="margin-top:14px">'+full+' · '+C.length+'</label>';
     h+='<div id="recL-'+k+'">'+C.map(row).join('')+'</div>'});
-  $('recList').innerHTML=h||'<div class="mut">'+(R.length?'Aucune recette trouvée.':'Aucune recette pour l\'instant.')+'</div>';
+  if(h&&recCat==='ph')h='<div class="mut" style="margin:6px 0 2px">Recettes adaptées à ta <b style="color:'+PH[php].c+'">'+PH[php].n.toLowerCase()+'</b> en cours.</div>'+h;
+  $('recList').innerHTML=h||'<div class="mut">'+(recCat==='ph'?'Aucune recette marquée '+PH[php].n.toLowerCase()+' pour l\'instant.':R.length?'Aucune recette trouvée.':'Aucune recette pour l\'instant.')+'</div>';
 }
 function openRecipe(id){const r=(S.recipes||[]).find(x=>x.id===id);if(!r)return;
   dlgOpen('<div class="rfi"><h2>'+esc(r.name)+'</h2><div class="calc"><span>'+(r.mode==='100g'?'Pour 100 g':'La portion')+'</span><b>'+frInt(r.k)+' kcal · '+fN(r.p)+' g P</b></div>'+'<div class="mut">'+(RCAT.find(c=>c[0]===r.cat)||[,,''])[2]+(r.total?' · environ '+frInt(r.total)+' g au total':'')+'</div>'+
@@ -766,9 +773,10 @@ function recSave(){const c=recCalc();if(!c){toast('Indique une quantité');retur
   if(A.back){pushEntry(c.name,c.p,c.k,A.back.m,A.back.d);pastAdd(A.back.m,A.back.d,true);return}
   dlgClose();pushEntry(c.name,c.p,c.k,A.m,A.d)}
 function linesOf(t){return String(t||'').split(/\n/).map(x=>x.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,'').trim()).filter(Boolean)}
-function editRecipe(id,pre){const r=pre||(S.recipes||[]).find(x=>x.id===id)||{name:'',mode:'portion',p:'',k:'',ing:[],steps:[]};
+function editRecipe(id,pre){window._preT=!!(pre&&Array.isArray(pre.tags));const r=pre||(S.recipes||[]).find(x=>x.id===id)||{name:'',mode:'portion',p:'',k:'',ing:[],steps:[]};
   dlgOpen('<h2>'+(id?'Modifier la recette':pre?'Vérifier la recette':'Nouvelle recette')+'</h2><label>Nom</label><input id="reN" value="'+esc(r.name)+'" placeholder="Tortilla pommes de terre-œufs">'+
    '<label>Catégorie</label><select id="reC">'+RCAT.map(c=>'<option value="'+c[0]+'"'+((r.cat||guessCat(r))===c[0]?' selected':'')+'>'+c[2]+'</option>').join('')+'</select>'+
+   '<label>Phases conseillées</label><div class="chk"><input type="checkbox" id="reTS"'+((r.tags||[]).includes('seche')?' checked':'')+'><span style="color:var(--green)">Sèche</span></div><div class="chk"><input type="checkbox" id="reTM"'+((r.tags||[]).includes('masse')?' checked':'')+'><span style="color:var(--orange)">Prise de masse</span></div>'+(id||pre?'':'<div class="mut">Sans case cochée, l\'appli choisit d\'après les macros.</div>')+
    '<label>Valeurs</label><select id="reM" onchange="$(\'reTB\').style.display=this.value===\'100g\'?\'\':\'none\'"><option value="portion"'+(r.mode!=='100g'?' selected':'')+'>Pour une portion</option><option value="100g"'+(r.mode==='100g'?' selected':'')+'>Pour 100 g</option></select>'+
    '<div class="grid2"><div><label>Protéines (g)</label><input id="reP" type="number" inputmode="decimal" value="'+(r.p??'')+'"></div><div><label>Calories</label><input id="reK" type="number" inputmode="decimal" value="'+(r.k??'')+'"></div></div>'+
    '<div id="reTB" style="'+(r.mode==='100g'?'':'display:none')+'"><label>Poids total cuit (g, facultatif)</label><input id="reT" type="number" inputmode="decimal" value="'+(r.total||'')+'"></div>'+
@@ -779,7 +787,9 @@ function editRecipe(id,pre){const r=pre||(S.recipes||[]).find(x=>x.id===id)||{na
 function saveRecipe(id){const name=v('reN').trim(),mode=v('reM');let p=num(v('reP')),k=num(v('reK'));const total=num(v('reT'));
   if(!name){err('reErr','Donne un nom');return}if(!(p>=0)||!(k>0)){err('reErr','Indique les protéines et les calories');return}
   [p,k]=checkSwap(p,k);
-  const r={name,mode,cat:v('reC'),p,k,total:mode==='100g'&&total>0?total:undefined,ing:linesOf(v('reI')),steps:linesOf(v('reS'))};
+  let tags=[...($('reTS').checked?['seche']:[]),...($('reTM').checked?['masse']:[])];
+  if(!tags.length&&!id&&!window._preT)tags=autoTags({mode,p,k});
+  const r={name,mode,cat:v('reC'),tags,p,k,total:mode==='100g'&&total>0?total:undefined,ing:linesOf(v('reI')),steps:linesOf(v('reS'))};
   S.recipes=S.recipes||[];
   if(id)Object.assign(S.recipes.find(x=>x.id===id),r);else S.recipes.push({id:uid(),...r});
   save();dlgClose();render();toast(id?'Recette modifiée':'Recette enregistrée');
@@ -787,7 +797,7 @@ function saveRecipe(id){const name=v('reN').trim(),mode=v('reM');let p=num(v('re
 function delRecipe(id){if(!confirm('Supprimer cette recette ?'))return;S.recipes=S.recipes.filter(x=>x.id!==id);save();dlgClose();render()}
 /* coller une recette */
 let PASTEQ=[];
-function pasteRecipe(){dlgOpen('<h2>Coller une recette</h2><div class="mut">Colle ici le texte de la recette (format « RECETTE : … »). Tu pourras vérifier la fiche avant de l\'enregistrer. Plusieurs recettes à la suite fonctionnent aussi.</div><textarea id="paT" style="min-height:220px;margin-top:10px" placeholder="RECETTE : Tortilla pommes de terre-œufs&#10;CATÉGORIE : Plats&#10;MACROS : 565 kcal / 31 g P par portion&#10;INGRÉDIENTS :&#10;- 300 g de pommes de terre&#10;ÉTAPES :&#10;1. …"></textarea><div id="paErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="pasteGo()">Lire la recette</button></div>')}
+function pasteRecipe(){dlgOpen('<h2>Coller une recette</h2><div class="mut">Colle ici le texte de la recette (format « RECETTE : … »). Tu pourras vérifier la fiche avant de l\'enregistrer. Plusieurs recettes à la suite fonctionnent aussi.</div><textarea id="paT" style="min-height:220px;margin-top:10px" placeholder="RECETTE : Tortilla pommes de terre-œufs&#10;CATÉGORIE : Plats&#10;PHASE : Sèche&#10;MACROS : 565 kcal / 31 g P par portion&#10;INGRÉDIENTS :&#10;- 300 g de pommes de terre&#10;ÉTAPES :&#10;1. …"></textarea><div id="paErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="pasteGo()">Lire la recette</button></div>')}
 function parseRecipes(txt){
   const N=t=>t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const blocks=String(txt||'').replace(/\r/g,'').split(/^\s*(?:\*\*)?\s*recette\s*(?:\*\*)?\s*:/im).slice(1);
@@ -797,12 +807,13 @@ function parseRecipes(txt){
     lines.forEach(L=>{const l=L.replace(/\*\*/g,'').trim();if(!l)return;const n=N(l);
       if(/^macros?\s*:/.test(n)){const k=/([\d.,]+)\s*kcal/.exec(n),p=/([\d.,]+)\s*g\s*(?:de\s*)?(?:p\b|prot)/.exec(n),t=/total[^\d]*([\d\s.,]+)\s*g/.exec(n);
         if(k)r.k=num(k[1]);if(p)r.p=num(p[1]);if(/100\s*g/.test(n))r.mode='100g';if(t)r.total=num(t[1].replace(/\s/g,''));sec=null;return}
+      if(/^phases?\s*:/.test(n)){const t=n.split(':').slice(1).join(':');r.tags=[...(/sec/.test(t)?['seche']:[]),...(/mass/.test(t)?['masse']:[])];sec=null;return}
       if(/^categorie\s*:/.test(n)){r.cat=guessCat(r,n.split(':').slice(1).join(':'));sec=null;return}
       if(/^ingredients?\s*:?$/.test(n)||/^ingredients?\s*:/.test(n)){sec='ing';const rest=l.split(':').slice(1).join(':').trim();if(rest)r.ing.push(...rest.split(/,\s*/));return}
       if(/^(etapes?|preparation)\s*:?/.test(n)){sec='steps';return}
       if(sec==='ing')r.ing.push(l.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,''));else if(sec==='steps')r.steps.push(l.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/,''));
     });
-    if(!r.cat)r.cat=guessCat(r);return r}).filter(r=>r.name);
+    if(!r.cat)r.cat=guessCat(r);if(!r.tags)r.tags=autoTags(r);return r}).filter(r=>r.name);
 }
 function pasteGo(){const R=parseRecipes(v('paT'));
   if(!R.length){err('paErr','Je ne trouve pas de recette : le texte doit commencer par « RECETTE : nom ».');return}

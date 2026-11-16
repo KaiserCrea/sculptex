@@ -72,6 +72,9 @@ input:focus,select:focus{outline:none;border-color:var(--gold)}
 label{display:block;font-size:13px;color:var(--mut);margin:10px 0 5px}
 .seg{display:flex;gap:4px;padding:4px;border-radius:16px;background:linear-gradient(#0f0e0d,#0f0e0d) padding-box,var(--edge) border-box;border:1px solid transparent}
 .seg button{flex:1;padding:9px 4px;border-radius:12px;border:none;background:none;font-size:14px;color:var(--mut)}
+.segx{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.segx::-webkit-scrollbar{display:none}
+.segx button{flex:0 0 auto;padding:9px 14px;white-space:nowrap}
 .seg button.on{background:linear-gradient(180deg,#fbe2a6,#d9ab57);color:#1b1407;font-weight:700}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(10,10,10,.96);border-top:1px solid rgba(233,194,122,.18);padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:5}
 nav button{flex:1;min-width:0;background:none;border:none;color:var(--mut);font-size:11px;padding:6px 0;border-radius:12px;white-space:nowrap}
@@ -427,14 +430,17 @@ const START_RECIPES=[
   ing:['1 volume de riz','1,5 volume d\'eau','1 cube de bouillon de volaille','Persil','Citron'],
   steps:['Porter l\'eau et le cube à ébullition, ajouter le riz','Couvrir, feu doux, 11-12 min, sans égoutter','Persil et filet de citron en fin de cuisson']}
 ];
-const RCAT=[['pdj','Petit-déj','Petit-déj'],['plat','Plats','Plats complets'],['base','Bases','Bases et accompagnements']];
-function autoTags(r){const k=+r.k||0,p=+r.p||0;if(!k)return[];if(r.mode==='100g')return['masse'];const ratio=p/k*100,t=[];
+const RCAT=[['pdj','Petit-déj','Petit-déj'],['plat','Plats','Plats complets'],['base','Bases','Bases et accompagnements'],['sauce','Sauces','Sauces']];
+function autoTags(r){const k=+r.k||0,p=+r.p||0;if(!k)return[];
+  if(r.cat==='sauce'){if(r.mode==='100g')return k<=100?['seche']:k>=250?['masse']:[];return k<=80?['seche']:k>=200?['masse']:[]}
+  if(r.mode==='100g')return['masse'];const ratio=p/k*100,t=[];
   if(ratio>=7.5&&k<=650)t.push('seche');if(k>=650||ratio<6)t.push('masse');return t}
 const TAGC={seche:['Sèche','var(--green)'],masse:['Masse','var(--orange)']};
 const tagChips=r=>(r.tags||[]).length?'<div style="margin-top:5px">'+r.tags.map(t=>'<span class="rtg" style="border-color:'+TAGC[t][1]+';color:'+TAGC[t][1]+'">'+TAGC[t][0]+'</span>').join('')+'</div>':'';
 function guessCat(r,txt){const n=String(txt||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  if(n){if(/petit|dej|matin|breakfast/.test(n))return'pdj';if(/base|accomp/.test(n))return'base';if(/plat|repas/.test(n))return'plat'}
+  if(n){if(/sauce/.test(n))return'sauce';if(/petit|dej|matin|breakfast/.test(n))return'pdj';if(/base|accomp/.test(n))return'base';if(/plat|repas/.test(n))return'plat'}
   const nm=String(r.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/^sauce|vinaigrette|pesto|mayo|tzatziki|houmous|hummus|\bdip\b/.test(nm))return'sauce';
   if(/porridge|pancake|overnight|muesli|granola/.test(nm))return'pdj';return r.mode==='100g'?'base':'plat'}
 function migrate(s){
   if(!s.profile)s.profile={sex:'h',h:185,age:39,act:1.55};
@@ -734,8 +740,9 @@ const recMac=r=>frInt(r.k)+' kcal · '+fN(r.p)+' g de protéines '+(r.mode==='10
 let recCat='all';
 function renderRecipes(){
   const R=S.recipes||[];
-  if(!$('recSeg'))$('recTop').innerHTML='<div class="seg" id="recSeg" style="margin:4px 0 10px"></div><input id="recS" placeholder="Rechercher une recette" style="margin:0 0 6px" oninput="recQ=this.value;renderRecipes()">';
+  if(!$('recSeg'))$('recTop').innerHTML='<div class="seg segx" id="recSeg" style="margin:4px 0 10px"></div><input id="recS" placeholder="Rechercher une recette" style="margin:0 0 6px" oninput="recQ=this.value;renderRecipes()">';
   const php=cur().p,hasPh=php==='seche'||php==='masse';if(recCat==='ph'&&!hasPh)recCat='all';
+  setTimeout(()=>{const b=document.querySelector('#recSeg button.on');if(b)b.scrollIntoView({block:'nearest',inline:'nearest'})},0);
   $('recSeg').innerHTML=[['all','Tout'],...RCAT.map(c=>[c[0],c[1]]),...(hasPh?[['ph','Ma phase']]:[])].map(([k,l])=>'<button class="'+(k===recCat?'on':'')+'" onclick="recCat=\''+k+'\';renderRecipes()">'+l+'</button>').join('');
   const q=recQ.trim(),L=R.filter(r=>(!q||norm(r.name).includes(norm(q)))&&(recCat!=='ph'||(r.tags||[]).includes(php)));
   const row=r=>'<div class="rc" data-id="'+r.id+'">'+(q||recCat==='ph'?'':'<span class="hdl" aria-label="Déplacer">≡</span>')+'<div class="rn" onclick="openRecipe(\''+r.id+'\')"><b>'+esc(r.name)+'</b><span>'+recMac(r)+'</span>'+tagChips(r)+'</div><button class="qa" aria-label="Ajouter" onclick="recAdd(\''+r.id+'\')">+</button></div>';
@@ -788,7 +795,7 @@ function saveRecipe(id){const name=v('reN').trim(),mode=v('reM');let p=num(v('re
   if(!name){err('reErr','Donne un nom');return}if(!(p>=0)||!(k>0)){err('reErr','Indique les protéines et les calories');return}
   [p,k]=checkSwap(p,k);
   let tags=[...($('reTS').checked?['seche']:[]),...($('reTM').checked?['masse']:[])];
-  if(!tags.length&&!id&&!window._preT)tags=autoTags({mode,p,k});
+  if(!tags.length&&!id&&!window._preT)tags=autoTags({mode,p,k,cat:v('reC')});
   const r={name,mode,cat:v('reC'),tags,p,k,total:mode==='100g'&&total>0?total:undefined,ing:linesOf(v('reI')),steps:linesOf(v('reS'))};
   S.recipes=S.recipes||[];
   if(id)Object.assign(S.recipes.find(x=>x.id===id),r);else S.recipes.push({id:uid(),...r});
@@ -797,7 +804,7 @@ function saveRecipe(id){const name=v('reN').trim(),mode=v('reM');let p=num(v('re
 function delRecipe(id){if(!confirm('Supprimer cette recette ?'))return;S.recipes=S.recipes.filter(x=>x.id!==id);save();dlgClose();render()}
 /* coller une recette */
 let PASTEQ=[];
-function pasteRecipe(){dlgOpen('<h2>Coller une recette</h2><div class="mut">Colle ici le texte de la recette (format « RECETTE : … »). Tu pourras vérifier la fiche avant de l\'enregistrer. Plusieurs recettes à la suite fonctionnent aussi.</div><textarea id="paT" style="min-height:220px;margin-top:10px" placeholder="RECETTE : Tortilla pommes de terre-œufs&#10;CATÉGORIE : Plats&#10;PHASE : Sèche&#10;MACROS : 565 kcal / 31 g P par portion&#10;INGRÉDIENTS :&#10;- 300 g de pommes de terre&#10;ÉTAPES :&#10;1. …"></textarea><div id="paErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="pasteGo()">Lire la recette</button></div>')}
+function pasteRecipe(){dlgOpen('<h2>Coller une recette</h2><div class="mut">Colle ici le texte de la recette (format « RECETTE : … »). Tu pourras vérifier la fiche avant de l\'enregistrer. Plusieurs recettes à la suite fonctionnent aussi.</div><textarea id="paT" style="min-height:220px;margin-top:10px" placeholder="RECETTE : Tortilla pommes de terre-œufs&#10;CATÉGORIE : Plats (ou Petit-déj, Bases, Sauces)&#10;PHASE : Sèche&#10;MACROS : 565 kcal / 31 g P par portion&#10;INGRÉDIENTS :&#10;- 300 g de pommes de terre&#10;ÉTAPES :&#10;1. …"></textarea><div id="paErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="dlgClose()">Annuler</button><button class="btn pri" onclick="pasteGo()">Lire la recette</button></div>')}
 function parseRecipes(txt){
   const N=t=>t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const blocks=String(txt||'').replace(/\r/g,'').split(/^\s*(?:\*\*)?\s*recette\s*(?:\*\*)?\s*:/im).slice(1);
